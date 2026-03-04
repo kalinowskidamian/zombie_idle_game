@@ -1,0 +1,33 @@
+# ==== Unity (standard) ====
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+MemoryCaptures/
+Recordings/
+
+# IDE / VS
+.vs/
+*.csproj
+*.sln
+*.user
+*.unityproj
+*.pidb
+*.suo
+*.tmp
+*.userprefs
+
+# ==== Unity project is inside ZombieIdleGame/ ====
+ZombieIdleGame/[Ll]ibrary/
+ZombieIdleGame/[Tt]emp/
+ZombieIdleGame/[Oo]bj/
+ZombieIdleGame/[Bb]uild/
+ZombieIdleGame/[Bb]uilds/
+ZombieIdleGame/[Ll]ogs/
+ZombieIdleGame/[Uu]serSettings/
+ZombieIdleGame/MemoryCaptures/
+ZombieIdleGame/Recordings/
+ZombieIdleGame/.vs/
