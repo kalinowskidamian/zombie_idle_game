@@ -28,7 +28,7 @@ public class UIHudController : MonoBehaviour
         CreateEventSystemIfMissing();
 
         var hudController = canvasObject.AddComponent<UIHudController>();
-        var font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
         var labelObject = new GameObject("EctoplasmLabel", typeof(RectTransform), typeof(Text));
         labelObject.transform.SetParent(canvasObject.transform, false);
