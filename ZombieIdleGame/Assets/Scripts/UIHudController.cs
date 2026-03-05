@@ -6,8 +6,14 @@ using UnityEngine.EventSystems;
 public class UIHudController : MonoBehaviour
 {
     [SerializeField] private Text ectoplasmText;
+    [SerializeField] private Text selectedBuildingText;
     [SerializeField] private Button addTenButton;
     [SerializeField] private Button resetButton;
+    [SerializeField] private Button graveSelectButton;
+    [SerializeField] private Button morgueSelectButton;
+    [SerializeField] private Button mausoleumSelectButton;
+
+    public static string SelectedBuildingId { get; private set; } = BuildingCatalog.GraveId;
 
     public static UIHudController EnsureHudExists()
     {
@@ -15,6 +21,7 @@ public class UIHudController : MonoBehaviour
         if (existing != null)
         {
             existing.AutoAssignReferencesIfMissing();
+            existing.RefreshSelectedBuildingLabel();
             return existing;
         }
 
@@ -38,7 +45,7 @@ public class UIHudController : MonoBehaviour
         labelRect.anchorMax = new Vector2(0f, 1f);
         labelRect.pivot = new Vector2(0f, 1f);
         labelRect.anchoredPosition = new Vector2(20f, -20f);
-        labelRect.sizeDelta = new Vector2(320f, 50f);
+        labelRect.sizeDelta = new Vector2(420f, 50f);
 
         var label = labelObject.GetComponent<Text>();
         label.font = font;
@@ -46,18 +53,51 @@ public class UIHudController : MonoBehaviour
         label.color = Color.white;
         label.alignment = TextAnchor.MiddleLeft;
 
-        var buttonObject = new GameObject("AddTenButton", typeof(RectTransform), typeof(Image), typeof(Button));
-        buttonObject.transform.SetParent(canvasObject.transform, false);
+        var selectedLabelObject = new GameObject("SelectedBuildingLabel", typeof(RectTransform), typeof(Text));
+        selectedLabelObject.transform.SetParent(canvasObject.transform, false);
+        var selectedLabelRect = selectedLabelObject.GetComponent<RectTransform>();
+        selectedLabelRect.anchorMin = new Vector2(0f, 1f);
+        selectedLabelRect.anchorMax = new Vector2(0f, 1f);
+        selectedLabelRect.pivot = new Vector2(0f, 1f);
+        selectedLabelRect.anchoredPosition = new Vector2(20f, -130f);
+        selectedLabelRect.sizeDelta = new Vector2(520f, 40f);
+
+        var selectedLabel = selectedLabelObject.GetComponent<Text>();
+        selectedLabel.font = font;
+        selectedLabel.fontSize = 24;
+        selectedLabel.color = Color.white;
+        selectedLabel.alignment = TextAnchor.MiddleLeft;
+
+        var button = CreateButton(canvasObject.transform, font, "AddTenButton", "+10", new Vector2(20f, -80f), new Color(0.2f, 0.6f, 0.2f, 0.9f));
+        var reset = CreateButton(canvasObject.transform, font, "ResetButton", "RESET", new Vector2(180f, -80f), new Color(0.7f, 0.2f, 0.2f, 0.9f));
+
+        var graveButton = CreateButton(canvasObject.transform, font, "GraveSelectButton", "Grave", new Vector2(20f, -180f), new Color(0.2f, 0.45f, 0.25f, 0.9f));
+        var morgueButton = CreateButton(canvasObject.transform, font, "MorgueSelectButton", "Morgue", new Vector2(180f, -180f), new Color(0.5f, 0.2f, 0.2f, 0.9f));
+        var mausoleumButton = CreateButton(canvasObject.transform, font, "MausoleumSelectButton", "Mausoleum", new Vector2(340f, -180f), new Color(0.4f, 0.2f, 0.55f, 0.9f));
+
+        hudController.ectoplasmText = label;
+        hudController.selectedBuildingText = selectedLabel;
+        hudController.addTenButton = button;
+        hudController.resetButton = reset;
+        hudController.graveSelectButton = graveButton;
+        hudController.morgueSelectButton = morgueButton;
+        hudController.mausoleumSelectButton = mausoleumButton;
+        return hudController;
+    }
+
+    private static Button CreateButton(Transform parent, Font font, string name, string text, Vector2 anchoredPos, Color backgroundColor)
+    {
+        var buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
         var buttonRect = buttonObject.GetComponent<RectTransform>();
         buttonRect.anchorMin = new Vector2(0f, 1f);
         buttonRect.anchorMax = new Vector2(0f, 1f);
         buttonRect.pivot = new Vector2(0f, 1f);
-        buttonRect.anchoredPosition = new Vector2(20f, -80f);
+        buttonRect.anchoredPosition = anchoredPos;
         buttonRect.sizeDelta = new Vector2(140f, 50f);
 
         var buttonImage = buttonObject.GetComponent<Image>();
-        buttonImage.color = new Color(0.2f, 0.6f, 0.2f, 0.9f);
-        var button = buttonObject.GetComponent<Button>();
+        buttonImage.color = backgroundColor;
 
         var buttonTextObject = new GameObject("Text", typeof(RectTransform), typeof(Text));
         buttonTextObject.transform.SetParent(buttonObject.transform, false);
@@ -69,43 +109,12 @@ public class UIHudController : MonoBehaviour
 
         var buttonText = buttonTextObject.GetComponent<Text>();
         buttonText.font = font;
-        buttonText.fontSize = 28;
-        buttonText.text = "+10";
+        buttonText.fontSize = 24;
+        buttonText.text = text;
         buttonText.alignment = TextAnchor.MiddleCenter;
         buttonText.color = Color.white;
 
-        var resetButtonObject = new GameObject("ResetButton", typeof(RectTransform), typeof(Image), typeof(Button));
-        resetButtonObject.transform.SetParent(canvasObject.transform, false);
-        var resetButtonRect = resetButtonObject.GetComponent<RectTransform>();
-        resetButtonRect.anchorMin = new Vector2(0f, 1f);
-        resetButtonRect.anchorMax = new Vector2(0f, 1f);
-        resetButtonRect.pivot = new Vector2(0f, 1f);
-        resetButtonRect.anchoredPosition = new Vector2(180f, -80f);
-        resetButtonRect.sizeDelta = new Vector2(140f, 50f);
-
-        var resetButtonImage = resetButtonObject.GetComponent<Image>();
-        resetButtonImage.color = new Color(0.7f, 0.2f, 0.2f, 0.9f);
-        var reset = resetButtonObject.GetComponent<Button>();
-
-        var resetButtonTextObject = new GameObject("Text", typeof(RectTransform), typeof(Text));
-        resetButtonTextObject.transform.SetParent(resetButtonObject.transform, false);
-        var resetButtonTextRect = resetButtonTextObject.GetComponent<RectTransform>();
-        resetButtonTextRect.anchorMin = Vector2.zero;
-        resetButtonTextRect.anchorMax = Vector2.one;
-        resetButtonTextRect.offsetMin = Vector2.zero;
-        resetButtonTextRect.offsetMax = Vector2.zero;
-
-        var resetButtonText = resetButtonTextObject.GetComponent<Text>();
-        resetButtonText.font = font;
-        resetButtonText.fontSize = 28;
-        resetButtonText.text = "RESET";
-        resetButtonText.alignment = TextAnchor.MiddleCenter;
-        resetButtonText.color = Color.white;
-
-        hudController.ectoplasmText = label;
-        hudController.addTenButton = button;
-        hudController.resetButton = reset;
-        return hudController;
+        return buttonObject.GetComponent<Button>();
     }
 
     private static void CreateEventSystemIfMissing()
@@ -144,7 +153,26 @@ public class UIHudController : MonoBehaviour
             resetButton.onClick.AddListener(HandleResetClicked);
         }
 
+        if (graveSelectButton != null)
+        {
+            graveSelectButton.onClick.RemoveListener(HandleGraveSelected);
+            graveSelectButton.onClick.AddListener(HandleGraveSelected);
+        }
+
+        if (morgueSelectButton != null)
+        {
+            morgueSelectButton.onClick.RemoveListener(HandleMorgueSelected);
+            morgueSelectButton.onClick.AddListener(HandleMorgueSelected);
+        }
+
+        if (mausoleumSelectButton != null)
+        {
+            mausoleumSelectButton.onClick.RemoveListener(HandleMausoleumSelected);
+            mausoleumSelectButton.onClick.AddListener(HandleMausoleumSelected);
+        }
+
         RefreshEctoplasmLabel();
+        RefreshSelectedBuildingLabel();
     }
 
     private void Update()
@@ -163,12 +191,25 @@ public class UIHudController : MonoBehaviour
         {
             resetButton.onClick.RemoveListener(HandleResetClicked);
         }
+
+        if (graveSelectButton != null)
+        {
+            graveSelectButton.onClick.RemoveListener(HandleGraveSelected);
+        }
+
+        if (morgueSelectButton != null)
+        {
+            morgueSelectButton.onClick.RemoveListener(HandleMorgueSelected);
+        }
+
+        if (mausoleumSelectButton != null)
+        {
+            mausoleumSelectButton.onClick.RemoveListener(HandleMausoleumSelected);
+        }
     }
 
     private void HandleAddTenClicked()
     {
-        Debug.Log("Clicked +10");
-
         if (GameBootstrap.State == null)
         {
             return;
@@ -188,8 +229,27 @@ public class UIHudController : MonoBehaviour
         SaveSystem.Save(GameBootstrap.State);
         GridManager.ClearBuildingsVisuals();
 
-        Debug.Log("Save reset");
+        SelectedBuildingId = BuildingCatalog.GraveId;
+        RefreshSelectedBuildingLabel();
         RefreshEctoplasmLabel();
+    }
+
+    private void HandleGraveSelected()
+    {
+        SelectedBuildingId = BuildingCatalog.GraveId;
+        RefreshSelectedBuildingLabel();
+    }
+
+    private void HandleMorgueSelected()
+    {
+        SelectedBuildingId = BuildingCatalog.MorgueId;
+        RefreshSelectedBuildingLabel();
+    }
+
+    private void HandleMausoleumSelected()
+    {
+        SelectedBuildingId = BuildingCatalog.MausoleumId;
+        RefreshSelectedBuildingLabel();
     }
 
     private void RefreshEctoplasmLabel()
@@ -203,36 +263,78 @@ public class UIHudController : MonoBehaviour
         ectoplasmText.text = $"Ectoplasm: {ectoplasm}";
     }
 
+    private void RefreshSelectedBuildingLabel()
+    {
+        if (selectedBuildingText == null)
+        {
+            return;
+        }
+
+        selectedBuildingText.text = $"Selected: {BuildingCatalog.GetDisplayName(SelectedBuildingId)}";
+    }
+
     private void AutoAssignReferencesIfMissing()
     {
         if (ectoplasmText == null)
         {
-            ectoplasmText = FindObjectOfType<Text>();
+            var text = GameObject.Find("EctoplasmLabel");
+            if (text != null)
+            {
+                ectoplasmText = text.GetComponent<Text>();
+            }
+        }
+
+        if (selectedBuildingText == null)
+        {
+            var selectedLabel = GameObject.Find("SelectedBuildingLabel");
+            if (selectedLabel != null)
+            {
+                selectedBuildingText = selectedLabel.GetComponent<Text>();
+            }
         }
 
         if (addTenButton == null)
         {
-            var buttons = FindObjectsOfType<Button>();
-            for (var i = 0; i < buttons.Length; i++)
+            var addTen = GameObject.Find("AddTenButton");
+            if (addTen != null)
             {
-                if (buttons[i].name == "AddTenButton")
-                {
-                    addTenButton = buttons[i];
-                    break;
-                }
+                addTenButton = addTen.GetComponent<Button>();
             }
         }
 
         if (resetButton == null)
         {
-            var buttons = FindObjectsOfType<Button>();
-            for (var i = 0; i < buttons.Length; i++)
+            var reset = GameObject.Find("ResetButton");
+            if (reset != null)
             {
-                if (buttons[i].name == "ResetButton")
-                {
-                    resetButton = buttons[i];
-                    break;
-                }
+                resetButton = reset.GetComponent<Button>();
+            }
+        }
+
+        if (graveSelectButton == null)
+        {
+            var button = GameObject.Find("GraveSelectButton");
+            if (button != null)
+            {
+                graveSelectButton = button.GetComponent<Button>();
+            }
+        }
+
+        if (morgueSelectButton == null)
+        {
+            var button = GameObject.Find("MorgueSelectButton");
+            if (button != null)
+            {
+                morgueSelectButton = button.GetComponent<Button>();
+            }
+        }
+
+        if (mausoleumSelectButton == null)
+        {
+            var button = GameObject.Find("MausoleumSelectButton");
+            if (button != null)
+            {
+                mausoleumSelectButton = button.GetComponent<Button>();
             }
         }
     }
