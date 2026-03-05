@@ -33,24 +33,61 @@ public class ProductionSystem : MonoBehaviour
             return;
         }
 
+        var nowUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var changedState = false;
         var producedAnything = false;
+
         for (var i = 0; i < state.buildingInstances.Count; i++)
         {
             var building = state.buildingInstances[i];
+            if (BuildingTiming.TryCompleteBuild(building, nowUnixSeconds))
+            {
+                changedState = true;
+            }
+
+            if (building.isBuilding)
+            {
+                continue;
+            }
+
             var buildingRate = ProductionCalculator.GetBuildingProductionPerSecond(state, building);
             if (buildingRate <= 0d)
             {
                 continue;
             }
 
-            building.storedEctoplasm += buildingRate * deltaTime;
-            producedAnything = true;
+            var storageCap = BuildingTiming.GetStorageCap(state, building);
+            if (storageCap <= 0d)
+            {
+                continue;
+            }
+
+            if (building.storedEctoplasm >= storageCap)
+            {
+                building.storedEctoplasm = storageCap;
+                continue;
+            }
+
+            var before = building.storedEctoplasm;
+            building.storedEctoplasm = Math.Min(storageCap, before + (buildingRate * deltaTime));
+            if (building.storedEctoplasm > before)
+            {
+                producedAnything = true;
+            }
         }
 
-        state.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        state.lastSavedUnixSeconds = nowUnixSeconds;
 
-        if (!producedAnything)
+        if (!producedAnything && !changedState)
         {
+            return;
+        }
+
+        if (changedState)
+        {
+            saveTimer = 0f;
+            SaveSystem.Save(state);
+            GridManager.Instance?.RefreshVisualsFromState();
             return;
         }
 

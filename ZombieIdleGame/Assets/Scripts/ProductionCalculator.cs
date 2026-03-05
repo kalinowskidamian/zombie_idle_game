@@ -22,7 +22,7 @@ public static class ProductionCalculator
 
     public static double GetBuildingProductionPerSecond(GameState state, BuildingInstance building)
     {
-        if (state?.buildingInstances == null || building == null)
+        if (state?.buildingInstances == null || building == null || building.isBuilding)
         {
             return 0d;
         }
@@ -53,7 +53,7 @@ public static class ProductionCalculator
         for (var i = 0; i < state.buildingInstances.Count; i++)
         {
             var mausoleum = state.buildingInstances[i];
-            if (!IsMausoleum(mausoleum))
+            if (!IsMausoleum(mausoleum) || mausoleum.isBuilding)
             {
                 continue;
             }
@@ -133,7 +133,7 @@ public static class ProductionCalculator
         for (var i = 0; i < state.buildingInstances.Count; i++)
         {
             var mausoleum = state.buildingInstances[i];
-            if (!IsMausoleum(mausoleum))
+            if (!IsMausoleum(mausoleum) || mausoleum.isBuilding)
             {
                 continue;
             }
