@@ -13,6 +13,7 @@ public class UIHudController : MonoBehaviour
 
     [SerializeField] private Text ectoplasmText;
     [SerializeField] private Text selectedBuildingText;
+    [SerializeField] private Text uncollectedText;
     [SerializeField] private Button addTenButton;
     [SerializeField] private Button resetButton;
     [SerializeField] private Button selectModeButton;
@@ -82,6 +83,21 @@ public class UIHudController : MonoBehaviour
         selectedLabel.color = Color.white;
         selectedLabel.alignment = TextAnchor.MiddleLeft;
 
+        var uncollectedLabelObject = new GameObject("UncollectedLabel", typeof(RectTransform), typeof(Text));
+        uncollectedLabelObject.transform.SetParent(canvasObject.transform, false);
+        var uncollectedLabelRect = uncollectedLabelObject.GetComponent<RectTransform>();
+        uncollectedLabelRect.anchorMin = new Vector2(0f, 1f);
+        uncollectedLabelRect.anchorMax = new Vector2(0f, 1f);
+        uncollectedLabelRect.pivot = new Vector2(0f, 1f);
+        uncollectedLabelRect.anchoredPosition = new Vector2(20f, -165f);
+        uncollectedLabelRect.sizeDelta = new Vector2(520f, 36f);
+
+        var uncollectedLabel = uncollectedLabelObject.GetComponent<Text>();
+        uncollectedLabel.font = font;
+        uncollectedLabel.fontSize = 22;
+        uncollectedLabel.color = new Color(0.75f, 1f, 0.8f, 1f);
+        uncollectedLabel.alignment = TextAnchor.MiddleLeft;
+
         var button = CreateButton(canvasObject.transform, font, "AddTenButton", "+10", new Vector2(20f, -80f), new Color(0.2f, 0.6f, 0.2f, 0.9f));
         var reset = CreateButton(canvasObject.transform, font, "ResetButton", "RESET", new Vector2(180f, -80f), new Color(0.7f, 0.2f, 0.2f, 0.9f));
 
@@ -92,6 +108,7 @@ public class UIHudController : MonoBehaviour
 
         hudController.ectoplasmText = label;
         hudController.selectedBuildingText = selectedLabel;
+        hudController.uncollectedText = uncollectedLabel;
         hudController.addTenButton = button;
         hudController.resetButton = reset;
         hudController.selectModeButton = selectButton;
@@ -194,12 +211,14 @@ public class UIHudController : MonoBehaviour
         }
 
         RefreshEctoplasmLabel();
+        RefreshUncollectedLabel();
         RefreshSelectedBuildingLabel();
     }
 
     private void Update()
     {
         RefreshEctoplasmLabel();
+        RefreshUncollectedLabel();
     }
 
     private void OnDisable()
@@ -246,6 +265,7 @@ public class UIHudController : MonoBehaviour
         GameBootstrap.State.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         SaveSystem.Save(GameBootstrap.State);
         RefreshEctoplasmLabel();
+        RefreshUncollectedLabel();
     }
 
     private void HandleResetClicked()
@@ -253,12 +273,16 @@ public class UIHudController : MonoBehaviour
         SaveSystem.Delete();
         GameBootstrap.ResetState();
         GameBootstrap.State.buildingInstances?.Clear();
+        GameBootstrap.State.ectoplasm = 5000;
+        GameBootstrap.State.bones = 0;
         SaveSystem.Save(GameBootstrap.State);
         GridManager.ClearBuildingsVisuals();
+        GridManager.Instance?.RefreshVisualsFromState();
         BuildingSelectionManager.InstanceOrNull?.ClearSelection();
 
         EnterSelectMode();
         RefreshEctoplasmLabel();
+        RefreshUncollectedLabel();
     }
 
     private void HandleSelectModeSelected()
@@ -313,6 +337,26 @@ public class UIHudController : MonoBehaviour
         ectoplasmText.text = $"Ectoplasm: {ectoplasm}";
     }
 
+    private void RefreshUncollectedLabel()
+    {
+        if (uncollectedText == null)
+        {
+            return;
+        }
+
+        var total = 0d;
+        var state = GameBootstrap.State;
+        if (state?.buildingInstances != null)
+        {
+            for (var i = 0; i < state.buildingInstances.Count; i++)
+            {
+                total += state.buildingInstances[i].storedEctoplasm;
+            }
+        }
+
+        uncollectedText.text = $"Uncollected: {(long)Math.Floor(total)}";
+    }
+
     private void RefreshSelectedBuildingLabel()
     {
         if (selectedBuildingText == null)
@@ -349,6 +393,15 @@ public class UIHudController : MonoBehaviour
             if (selectedLabel != null)
             {
                 selectedBuildingText = selectedLabel.GetComponent<Text>();
+            }
+        }
+
+        if (uncollectedText == null)
+        {
+            var uncollectedLabel = GameObject.Find("UncollectedLabel");
+            if (uncollectedLabel != null)
+            {
+                uncollectedText = uncollectedLabel.GetComponent<Text>();
             }
         }
 

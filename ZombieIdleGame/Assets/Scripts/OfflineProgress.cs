@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 public static class OfflineProgress
 {
@@ -10,20 +11,60 @@ public static class OfflineProgress
         var rawDelta = nowUnixSeconds - state.lastSavedUnixSeconds;
         var offlineSeconds = Math.Max(0, Math.Min(rawDelta, MaxOfflineSeconds));
 
-        var productionRate = ProductionCalculator.GetProductionRatePerSecond(state);
-        var produced = productionRate * offlineSeconds;
-
-        state.ectoplasmRemainder += produced;
-        var gainedWhole = (long)Math.Floor(state.ectoplasmRemainder);
-        if (gainedWhole > 0)
+        var distribution = BuildProductionDistribution(state);
+        var producedTotal = 0d;
+        for (var i = 0; i < distribution.Count; i++)
         {
-            state.ectoplasm += gainedWhole;
-            state.ectoplasmRemainder -= gainedWhole;
+            var item = distribution[i];
+            var gained = item.Rate * offlineSeconds;
+            if (gained <= 0d)
+            {
+                continue;
+            }
+
+            item.Building.storedEctoplasm += gained;
+            producedTotal += gained;
         }
 
+        var gainedWhole = (long)Math.Floor(producedTotal);
         state.lastSavedUnixSeconds = nowUnixSeconds;
 
         return new OfflineProgressResult(offlineSeconds, gainedWhole);
+    }
+
+    private static List<DistributionItem> BuildProductionDistribution(GameState state)
+    {
+        var result = new List<DistributionItem>();
+        if (state?.buildingInstances == null)
+        {
+            return result;
+        }
+
+        for (var i = 0; i < state.buildingInstances.Count; i++)
+        {
+            var building = state.buildingInstances[i];
+            var rate = ProductionCalculator.GetBuildingProductionPerSecond(state, building);
+            if (rate <= 0d)
+            {
+                continue;
+            }
+
+            result.Add(new DistributionItem(building, rate));
+        }
+
+        return result;
+    }
+
+    private readonly struct DistributionItem
+    {
+        public BuildingInstance Building { get; }
+        public double Rate { get; }
+
+        public DistributionItem(BuildingInstance building, double rate)
+        {
+            Building = building;
+            Rate = rate;
+        }
     }
 }
 
