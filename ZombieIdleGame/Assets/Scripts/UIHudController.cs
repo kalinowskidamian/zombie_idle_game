@@ -95,14 +95,19 @@ public class UIHudController : MonoBehaviour
 
     private void OnEnable()
     {
-        if (addTenButton != null)
-        {
-            addTenButton.onClick.AddListener(HandleAddTenClicked);
-        }
+        AutoAssignReferencesIfMissing();
     }
 
     private void Start()
     {
+        AutoAssignReferencesIfMissing();
+
+        if (addTenButton != null)
+        {
+            addTenButton.onClick.RemoveListener(HandleAddTenClicked);
+            addTenButton.onClick.AddListener(HandleAddTenClicked);
+        }
+
         RefreshEctoplasmLabel();
     }
 
@@ -121,6 +126,8 @@ public class UIHudController : MonoBehaviour
 
     private void HandleAddTenClicked()
     {
+        Debug.Log("Clicked +10");
+
         if (GameBootstrap.State == null)
         {
             return;
