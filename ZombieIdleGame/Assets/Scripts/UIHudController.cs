@@ -383,11 +383,11 @@ public class UIHudController : MonoBehaviour
     {
         SaveSystem.Delete();
         GameBootstrap.ResetState();
-        GameBootstrap.State.buildingInstances?.Clear();
         GameBootstrap.State.ectoplasm = 5000;
         GameBootstrap.State.bones = 0;
         GameBootstrap.State.rot = 0;
         GameBootstrap.State.skulls = 0;
+        GameBootstrap.State.EnsureHeadquarters();
         SaveSystem.Save(GameBootstrap.State);
         GridManager.ClearBuildingsVisuals();
         GridManager.Instance?.RefreshVisualsFromState();

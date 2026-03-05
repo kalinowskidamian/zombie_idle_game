@@ -14,6 +14,7 @@ public class BuildingSelectionManager : MonoBehaviour
     private Text productionText;
     private Text bonusText;
     private Text detailsText;
+    private Text statusText;
     private Button upgradeButton;
     private Text upgradeButtonText;
     private Button sellButton;
@@ -109,6 +110,7 @@ public class BuildingSelectionManager : MonoBehaviour
         }
 
         var level = Mathf.Max(1, selectedBuilding.level);
+        var isHeadquarters = BuildingCatalog.IsHeadquarters(selectedBuilding.buildingId);
         var resource = BuildingCatalog.GetProducedResource(selectedBuilding.buildingId);
         titleText.text = BuildingCatalog.GetDisplayName(selectedBuilding.buildingId);
         levelText.text = $"Level: {level}";
@@ -154,14 +156,57 @@ public class BuildingSelectionManager : MonoBehaviour
             upgradeButton.interactable = false;
             upgradeButtonText.text = "Building...";
             sellButton.interactable = false;
+            sellButton.gameObject.SetActive(!isHeadquarters);
             return;
         }
 
+        statusText.text = string.Empty;
+
         var upgradeCost = BuildingCatalog.GetUpgradeCost(selectedBuilding.buildingId, level);
-        var canUpgrade = state.ectoplasm >= upgradeCost;
+        var canAfford = state.ectoplasm >= upgradeCost;
+        var blockedByHeadquarters = TryGetRequiredHeadquartersLevel(out var requiredHeadquartersLevel);
+        var canUpgrade = canAfford && !blockedByHeadquarters;
         upgradeButton.interactable = canUpgrade;
         upgradeButtonText.text = $"Upgrade ({upgradeCost})";
-        sellButton.interactable = true;
+        if (blockedByHeadquarters)
+        {
+            statusText.text = $"Wymaga HQ level {requiredHeadquartersLevel}";
+        }
+
+        sellButton.interactable = !isHeadquarters;
+        sellButton.gameObject.SetActive(!isHeadquarters);
+    }
+
+    private static int GetHeadquartersLevel(GameState state)
+    {
+        if (state?.buildingInstances == null)
+        {
+            return 1;
+        }
+
+        for (var i = 0; i < state.buildingInstances.Count; i++)
+        {
+            var building = state.buildingInstances[i];
+            if (building != null && BuildingCatalog.IsHeadquarters(building.buildingId))
+            {
+                return Mathf.Max(1, building.level);
+            }
+        }
+
+        return 1;
+    }
+
+    private bool TryGetRequiredHeadquartersLevel(out int requiredLevel)
+    {
+        requiredLevel = 0;
+        if (selectedBuilding == null || BuildingCatalog.IsHeadquarters(selectedBuilding.buildingId))
+        {
+            return false;
+        }
+
+        requiredLevel = Mathf.Max(1, selectedBuilding.level + 1);
+        var hqLevel = GetHeadquartersLevel(GameBootstrap.State);
+        return hqLevel < requiredLevel;
     }
 
     private string BuildMausoleumDetails(List<BuildingInstance> buffedBuildings, int level)
@@ -213,6 +258,13 @@ public class BuildingSelectionManager : MonoBehaviour
             return;
         }
 
+        if (TryGetRequiredHeadquartersLevel(out var requiredHeadquartersLevel))
+        {
+            statusText.text = $"Wymaga HQ level {requiredHeadquartersLevel}";
+            RefreshPanel();
+            return;
+        }
+
         state.ectoplasm -= upgradeCost;
         selectedBuilding.level = level + 1;
         var nowUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -229,6 +281,11 @@ public class BuildingSelectionManager : MonoBehaviour
     {
         var state = GameBootstrap.State;
         if (state?.buildingInstances == null || selectedBuilding == null)
+        {
+            return;
+        }
+
+        if (BuildingCatalog.IsHeadquarters(selectedBuilding.buildingId))
         {
             return;
         }
@@ -278,11 +335,13 @@ public class BuildingSelectionManager : MonoBehaviour
         levelText = CreateText("Level", new Vector2(16f, -56f), new Vector2(300f, 28f), 22, TextAnchor.MiddleLeft, font);
         productionText = CreateText("Production", new Vector2(16f, -90f), new Vector2(390f, 26f), 20, TextAnchor.MiddleLeft, font);
         bonusText = CreateText("Bonus", new Vector2(16f, -120f), new Vector2(390f, 26f), 20, TextAnchor.MiddleLeft, font);
-        detailsText = CreateText("Details", new Vector2(16f, -150f), new Vector2(390f, 90f), 18, TextAnchor.UpperLeft, font);
+        detailsText = CreateText("Details", new Vector2(16f, -150f), new Vector2(390f, 78f), 18, TextAnchor.UpperLeft, font);
+        statusText = CreateText("Status", new Vector2(16f, -232f), new Vector2(390f, 22f), 18, TextAnchor.MiddleLeft, font);
+        statusText.color = new Color(1f, 0.78f, 0.3f, 1f);
 
-        upgradeButton = CreateButton("UpgradeButton", "Upgrade", new Vector2(16f, -250f), new Color(0.2f, 0.45f, 0.25f, 0.95f), font);
+        upgradeButton = CreateButton("UpgradeButton", "Upgrade", new Vector2(16f, -258f), new Color(0.2f, 0.45f, 0.25f, 0.95f), font);
         upgradeButtonText = upgradeButton.GetComponentInChildren<Text>();
-        sellButton = CreateButton("SellButton", "Sell", new Vector2(162f, -250f), new Color(0.55f, 0.28f, 0.18f, 0.95f), font);
+        sellButton = CreateButton("SellButton", "Sell", new Vector2(162f, -258f), new Color(0.55f, 0.28f, 0.18f, 0.95f), font);
         var closeButton = CreateButton("CloseButton", "X", new Vector2(374f, -10f), new Color(0.45f, 0.18f, 0.18f, 0.95f), font, new Vector2(40f, 34f));
 
         upgradeButton.onClick.AddListener(HandleUpgradeClicked);

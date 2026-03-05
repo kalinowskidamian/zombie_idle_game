@@ -128,7 +128,7 @@ public static class ResourceLedger
             case ResourceKind.Ectoplasm:
                 return new Color(0.65f, 1f, 0.7f, 1f);
             case ResourceKind.Rot:
-                return new Color(0.9f, 0.75f, 0.35f, 1f);
+                return new Color(0.56f, 0.46f, 0.24f, 1f);
             case ResourceKind.Skulls:
                 return new Color(0.92f, 0.92f, 0.92f, 1f);
             default:
