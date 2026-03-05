@@ -17,7 +17,7 @@ public class GameBootstrap : MonoBehaviour
         var result = OfflineProgress.Apply(State);
         SaveSystem.Save(State);
 
-        Debug.Log($"Offline progress: {result.OfflineSeconds}s, added {result.GainedEctoplasm} ectoplasm to uncollected storage.");
+        Debug.Log($"Offline progress: {result.OfflineSeconds}s, added {result.GainedResources} resources to uncollected storage.");
 
         UIHudController.EnsureHudExists();
         MapCameraController.EnsureExists();

@@ -21,6 +21,8 @@ public class UIHudController : MonoBehaviour
     [SerializeField] private Button graveSelectButton;
     [SerializeField] private Button morgueSelectButton;
     [SerializeField] private Button mausoleumSelectButton;
+    [SerializeField] private Button ossuarySelectButton;
+    [SerializeField] private Button rotVatSelectButton;
     [FormerlySerializedAs("topBarHeight")]
     [SerializeField] private float topBarReferenceHeight = 160f;
     [SerializeField] private RectTransform topBarRect;
@@ -139,6 +141,8 @@ public class UIHudController : MonoBehaviour
         var graveButton = CreateButton(buttonRow, font, "GraveSelectButton", "Grave", new Color(0.2f, 0.45f, 0.25f, 0.9f));
         var morgueButton = CreateButton(buttonRow, font, "MorgueSelectButton", "Morgue", new Color(0.5f, 0.2f, 0.2f, 0.9f));
         var mausoleumButton = CreateButton(buttonRow, font, "MausoleumSelectButton", "Mausoleum", new Color(0.4f, 0.2f, 0.55f, 0.9f));
+        var ossuaryButton = CreateButton(buttonRow, font, "OssuarySelectButton", "Ossuary", new Color(0.75f, 0.75f, 0.75f, 0.9f));
+        var rotVatButton = CreateButton(buttonRow, font, "RotVatSelectButton", "Rot Vat", new Color(0.5f, 0.38f, 0.2f, 0.9f));
 
         hudController.ectoplasmText = label;
         hudController.selectedBuildingText = selectedLabel;
@@ -149,6 +153,8 @@ public class UIHudController : MonoBehaviour
         hudController.graveSelectButton = graveButton;
         hudController.morgueSelectButton = morgueButton;
         hudController.mausoleumSelectButton = mausoleumButton;
+        hudController.ossuarySelectButton = ossuaryButton;
+        hudController.rotVatSelectButton = rotVatButton;
         hudController.topBarRect = topBarRect;
         return hudController;
     }
@@ -293,6 +299,18 @@ public class UIHudController : MonoBehaviour
             mausoleumSelectButton.onClick.AddListener(HandleMausoleumSelected);
         }
 
+        if (ossuarySelectButton != null)
+        {
+            ossuarySelectButton.onClick.RemoveListener(HandleOssuarySelected);
+            ossuarySelectButton.onClick.AddListener(HandleOssuarySelected);
+        }
+
+        if (rotVatSelectButton != null)
+        {
+            rotVatSelectButton.onClick.RemoveListener(HandleRotVatSelected);
+            rotVatSelectButton.onClick.AddListener(HandleRotVatSelected);
+        }
+
         RefreshEctoplasmLabel();
         RefreshUncollectedLabel();
         RefreshSelectedBuildingLabel();
@@ -335,6 +353,16 @@ public class UIHudController : MonoBehaviour
         {
             mausoleumSelectButton.onClick.RemoveListener(HandleMausoleumSelected);
         }
+
+        if (ossuarySelectButton != null)
+        {
+            ossuarySelectButton.onClick.RemoveListener(HandleOssuarySelected);
+        }
+
+        if (rotVatSelectButton != null)
+        {
+            rotVatSelectButton.onClick.RemoveListener(HandleRotVatSelected);
+        }
     }
 
     private void HandleAddTenClicked()
@@ -358,6 +386,8 @@ public class UIHudController : MonoBehaviour
         GameBootstrap.State.buildingInstances?.Clear();
         GameBootstrap.State.ectoplasm = 5000;
         GameBootstrap.State.bones = 0;
+        GameBootstrap.State.rot = 0;
+        GameBootstrap.State.skulls = 0;
         SaveSystem.Save(GameBootstrap.State);
         GridManager.ClearBuildingsVisuals();
         GridManager.Instance?.RefreshVisualsFromState();
@@ -386,6 +416,16 @@ public class UIHudController : MonoBehaviour
     private void HandleMausoleumSelected()
     {
         EnterBuildMode(BuildingCatalog.MausoleumId);
+    }
+
+    private void HandleOssuarySelected()
+    {
+        EnterBuildMode(BuildingCatalog.OssuaryId);
+    }
+
+    private void HandleRotVatSelected()
+    {
+        EnterBuildMode(BuildingCatalog.RotVatId);
     }
 
     private void EnterSelectMode()
@@ -417,7 +457,9 @@ public class UIHudController : MonoBehaviour
         }
 
         var ectoplasm = GameBootstrap.State?.ectoplasm ?? 0;
-        ectoplasmText.text = $"Ectoplasm: {ectoplasm}";
+        var rot = GameBootstrap.State?.rot ?? 0;
+        var skulls = GameBootstrap.State?.skulls ?? 0;
+        ectoplasmText.text = $"Ectoplasm: {ectoplasm} | Rot: {rot} | Skulls: {skulls}";
     }
 
     private void RefreshUncollectedLabel()
@@ -427,17 +469,22 @@ public class UIHudController : MonoBehaviour
             return;
         }
 
-        var total = 0d;
+        var ectoplasmTotal = 0d;
+        var rotTotal = 0d;
+        var skullsTotal = 0d;
         var state = GameBootstrap.State;
         if (state?.buildingInstances != null)
         {
             for (var i = 0; i < state.buildingInstances.Count; i++)
             {
-                total += state.buildingInstances[i].storedEctoplasm;
+                var building = state.buildingInstances[i];
+                ectoplasmTotal += building.storedEctoplasm;
+                rotTotal += building.storedRot;
+                skullsTotal += building.storedSkulls;
             }
         }
 
-        uncollectedText.text = $"Uncollected: {(long)Math.Floor(total)}";
+        uncollectedText.text = $"Uncollected Ectoplasm: {(long)Math.Floor(ectoplasmTotal)} | Rot: {(long)Math.Floor(rotTotal)} | Skulls: {(long)Math.Floor(skullsTotal)}";
     }
 
     private void RefreshSelectedBuildingLabel()
@@ -539,6 +586,24 @@ public class UIHudController : MonoBehaviour
             if (button != null)
             {
                 mausoleumSelectButton = button.GetComponent<Button>();
+            }
+        }
+
+        if (ossuarySelectButton == null)
+        {
+            var button = GameObject.Find("OssuarySelectButton");
+            if (button != null)
+            {
+                ossuarySelectButton = button.GetComponent<Button>();
+            }
+        }
+
+        if (rotVatSelectButton == null)
+        {
+            var button = GameObject.Find("RotVatSelectButton");
+            if (button != null)
+            {
+                rotVatSelectButton = button.GetComponent<Button>();
             }
         }
 

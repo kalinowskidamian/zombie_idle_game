@@ -6,6 +6,8 @@ public static class BuildingCatalog
     public const string GraveId = "grave";
     public const string MorgueId = "morgue";
     public const string MausoleumId = "mausoleum";
+    public const string OssuaryId = "ossuary";
+    public const string RotVatId = "rot_vat";
 
     public static long GetCost(string buildingId)
     {
@@ -17,6 +19,10 @@ public static class BuildingCatalog
                 return 100;
             case MausoleumId:
                 return 200;
+            case OssuaryId:
+                return 250;
+            case RotVatId:
+                return 150;
             default:
                 return long.MaxValue;
         }
@@ -58,8 +64,28 @@ public static class BuildingCatalog
                 return 3d;
             case MausoleumId:
                 return 0d;
+            case OssuaryId:
+                return 0.02d;
+            case RotVatId:
+                return 0.2d;
             default:
                 return 0d;
+        }
+    }
+
+    public static ResourceKind GetProducedResource(string buildingId)
+    {
+        switch (buildingId)
+        {
+            case GraveId:
+            case MorgueId:
+                return ResourceKind.Ectoplasm;
+            case OssuaryId:
+                return ResourceKind.Skulls;
+            case RotVatId:
+                return ResourceKind.Rot;
+            default:
+                return ResourceKind.None;
         }
     }
 
@@ -91,7 +117,11 @@ public static class BuildingCatalog
 
     public static bool IsKnownBuilding(string buildingId)
     {
-        return buildingId == GraveId || buildingId == MorgueId || buildingId == MausoleumId;
+        return buildingId == GraveId
+            || buildingId == MorgueId
+            || buildingId == MausoleumId
+            || buildingId == OssuaryId
+            || buildingId == RotVatId;
     }
 
     public static Color GetColor(string buildingId)
@@ -104,6 +134,10 @@ public static class BuildingCatalog
                 return new Color(0.75f, 0.2f, 0.2f, 1f);
             case MausoleumId:
                 return new Color(0.5f, 0.2f, 0.7f, 1f);
+            case OssuaryId:
+                return new Color(0.8f, 0.8f, 0.8f, 1f);
+            case RotVatId:
+                return new Color(0.6f, 0.45f, 0.2f, 1f);
             default:
                 return Color.white;
         }
@@ -119,6 +153,10 @@ public static class BuildingCatalog
                 return "Morgue";
             case MausoleumId:
                 return "Mausoleum";
+            case OssuaryId:
+                return "Ossuary";
+            case RotVatId:
+                return "Rot Vat";
             default:
                 return "Unknown";
         }
@@ -134,6 +172,10 @@ public static class BuildingCatalog
                 return SpriteCache.MorgueSprite;
             case MausoleumId:
                 return SpriteCache.MausoleumSprite;
+            case OssuaryId:
+                return SpriteCache.OssuarySprite;
+            case RotVatId:
+                return SpriteCache.RotVatSprite;
             default:
                 return SpriteCache.FallbackSprite;
         }
@@ -144,6 +186,8 @@ public static class BuildingCatalog
         public static readonly Sprite GraveSprite = CreateSpriteFor(GraveId);
         public static readonly Sprite MorgueSprite = CreateSpriteFor(MorgueId);
         public static readonly Sprite MausoleumSprite = CreateSpriteFor(MausoleumId);
+        public static readonly Sprite OssuarySprite = CreateSpriteFor(OssuaryId);
+        public static readonly Sprite RotVatSprite = CreateSpriteFor(RotVatId);
         public static readonly Sprite FallbackSprite = CreateSpriteFor(string.Empty);
 
         private static Sprite CreateSpriteFor(string buildingId)
@@ -182,6 +226,20 @@ public static class BuildingCatalog
                     DrawRect(pixels, 64, 14 + y, 36 + y, 36 - (2 * y), 1, fill);
                 }
                 DrawRect(pixels, 64, 27, 16, 10, 12, new Color32(50, 50, 50, 255));
+            }
+            else if (buildingId == OssuaryId)
+            {
+                DrawRect(pixels, 64, 14, 14, 36, 28, fill);
+                DrawRect(pixels, 64, 18, 18, 28, 20, new Color32(45, 45, 45, 255));
+                DrawRect(pixels, 64, 24, 22, 4, 4, fill);
+                DrawRect(pixels, 64, 36, 22, 4, 4, fill);
+                DrawRect(pixels, 64, 28, 30, 8, 2, fill);
+            }
+            else if (buildingId == RotVatId)
+            {
+                DrawRect(pixels, 64, 16, 14, 32, 30, fill);
+                DrawRect(pixels, 64, 20, 18, 24, 22, new Color32(55, 70, 35, 255));
+                DrawRect(pixels, 64, 12, 44, 40, 4, fill);
             }
             else
             {
