@@ -8,8 +8,8 @@ public static class BuildingTiming
     public const long InitialBuildSeconds = 5;
 
     private const double UpgradeDurationBaseSeconds = 5d;
-    private const double UpgradeDurationGrowth = 1.35d;
-    private const long UpgradeDurationCapSeconds = 2 * 60 * 60;
+    private const double UpgradeDurationGrowth = 1.75d;
+    private const long UpgradeDurationCapSeconds = 4 * 60 * 60;
 
     public static bool TryCompleteBuild(BuildingInstance building, long nowUnixSeconds)
     {

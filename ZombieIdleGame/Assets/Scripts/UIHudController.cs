@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 
 public class UIHudController : MonoBehaviour
 {
@@ -20,6 +21,10 @@ public class UIHudController : MonoBehaviour
     [SerializeField] private Button graveSelectButton;
     [SerializeField] private Button morgueSelectButton;
     [SerializeField] private Button mausoleumSelectButton;
+    [FormerlySerializedAs("topBarHeight")]
+    [SerializeField] private float topBarReferenceHeight = 160f;
+    [SerializeField] private RectTransform topBarRect;
+    [SerializeField] private CanvasScaler hudScaler;
 
     public static InteractionMode CurrentMode { get; private set; } = InteractionMode.Select;
     public static string SelectedBuildingId { get; private set; }
@@ -28,6 +33,18 @@ public class UIHudController : MonoBehaviour
     {
         buildingId = SelectedBuildingId;
         return CurrentMode == InteractionMode.Build && BuildingCatalog.IsKnownBuilding(buildingId);
+    }
+
+    public static float GetTopBarScreenHeight()
+    {
+        var hud = FindObjectOfType<UIHudController>();
+        if (hud == null)
+        {
+            return 0f;
+        }
+
+        hud.AutoAssignReferencesIfMissing();
+        return hud.GetTopBarScreenHeightInternal();
     }
 
     public static UIHudController EnsureHudExists()
@@ -51,15 +68,40 @@ public class UIHudController : MonoBehaviour
         CreateEventSystemIfMissing();
 
         var hudController = canvasObject.AddComponent<UIHudController>();
+        hudController.hudScaler = scaler;
         var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
+        var topBarObject = new GameObject("TopBar", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+        topBarObject.transform.SetParent(canvasObject.transform, false);
+        var topBarRect = topBarObject.GetComponent<RectTransform>();
+        topBarRect.anchorMin = new Vector2(0f, 1f);
+        topBarRect.anchorMax = new Vector2(1f, 1f);
+        topBarRect.pivot = new Vector2(0.5f, 1f);
+        topBarRect.offsetMin = new Vector2(20f, -180f);
+        topBarRect.offsetMax = new Vector2(-20f, -20f);
+
+        var topBarImage = topBarObject.GetComponent<Image>();
+        topBarImage.color = new Color(0.05f, 0.06f, 0.1f, 0.85f);
+
+        var topBarLayout = topBarObject.GetComponent<VerticalLayoutGroup>();
+        topBarLayout.padding = new RectOffset(18, 18, 14, 14);
+        topBarLayout.spacing = 12f;
+        topBarLayout.childAlignment = TextAnchor.UpperLeft;
+        topBarLayout.childControlWidth = true;
+        topBarLayout.childControlHeight = false;
+        topBarLayout.childForceExpandWidth = true;
+        topBarLayout.childForceExpandHeight = false;
+
+        var topBarFitter = topBarObject.GetComponent<ContentSizeFitter>();
+        topBarFitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+        topBarFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+        var infoRow = CreateRow(topBarObject.transform, "InfoRow");
+        var buttonRow = CreateRow(topBarObject.transform, "ButtonsRow", 10f);
+
         var labelObject = new GameObject("EctoplasmLabel", typeof(RectTransform), typeof(Text));
-        labelObject.transform.SetParent(canvasObject.transform, false);
+        labelObject.transform.SetParent(infoRow, false);
         var labelRect = labelObject.GetComponent<RectTransform>();
-        labelRect.anchorMin = new Vector2(0f, 1f);
-        labelRect.anchorMax = new Vector2(0f, 1f);
-        labelRect.pivot = new Vector2(0f, 1f);
-        labelRect.anchoredPosition = new Vector2(20f, -20f);
         labelRect.sizeDelta = new Vector2(520f, 42f);
 
         var label = labelObject.GetComponent<Text>();
@@ -69,12 +111,8 @@ public class UIHudController : MonoBehaviour
         label.alignment = TextAnchor.MiddleLeft;
 
         var selectedLabelObject = new GameObject("SelectedBuildingLabel", typeof(RectTransform), typeof(Text));
-        selectedLabelObject.transform.SetParent(canvasObject.transform, false);
+        selectedLabelObject.transform.SetParent(infoRow, false);
         var selectedLabelRect = selectedLabelObject.GetComponent<RectTransform>();
-        selectedLabelRect.anchorMin = new Vector2(0f, 1f);
-        selectedLabelRect.anchorMax = new Vector2(0f, 1f);
-        selectedLabelRect.pivot = new Vector2(0f, 1f);
-        selectedLabelRect.anchoredPosition = new Vector2(20f, -98f);
         selectedLabelRect.sizeDelta = new Vector2(580f, 34f);
 
         var selectedLabel = selectedLabelObject.GetComponent<Text>();
@@ -84,12 +122,8 @@ public class UIHudController : MonoBehaviour
         selectedLabel.alignment = TextAnchor.MiddleLeft;
 
         var uncollectedLabelObject = new GameObject("UncollectedLabel", typeof(RectTransform), typeof(Text));
-        uncollectedLabelObject.transform.SetParent(canvasObject.transform, false);
+        uncollectedLabelObject.transform.SetParent(infoRow, false);
         var uncollectedLabelRect = uncollectedLabelObject.GetComponent<RectTransform>();
-        uncollectedLabelRect.anchorMin = new Vector2(0f, 1f);
-        uncollectedLabelRect.anchorMax = new Vector2(0f, 1f);
-        uncollectedLabelRect.pivot = new Vector2(0f, 1f);
-        uncollectedLabelRect.anchoredPosition = new Vector2(20f, -58f);
         uncollectedLabelRect.sizeDelta = new Vector2(580f, 34f);
 
         var uncollectedLabel = uncollectedLabelObject.GetComponent<Text>();
@@ -98,13 +132,13 @@ public class UIHudController : MonoBehaviour
         uncollectedLabel.color = new Color(0.75f, 1f, 0.8f, 1f);
         uncollectedLabel.alignment = TextAnchor.MiddleLeft;
 
-        var button = CreateButton(canvasObject.transform, font, "AddTenButton", "+10", new Vector2(20f, -146f), new Color(0.2f, 0.6f, 0.2f, 0.9f));
-        var reset = CreateButton(canvasObject.transform, font, "ResetButton", "RESET", new Vector2(180f, -146f), new Color(0.7f, 0.2f, 0.2f, 0.9f));
+        var button = CreateButton(buttonRow, font, "AddTenButton", "+10", new Color(0.2f, 0.6f, 0.2f, 0.9f));
+        var reset = CreateButton(buttonRow, font, "ResetButton", "RESET", new Color(0.7f, 0.2f, 0.2f, 0.9f));
 
-        var selectButton = CreateButton(canvasObject.transform, font, "SelectModeButton", "Select", new Vector2(340f, -146f), new Color(0.2f, 0.35f, 0.6f, 0.9f));
-        var graveButton = CreateButton(canvasObject.transform, font, "GraveSelectButton", "Grave", new Vector2(500f, -146f), new Color(0.2f, 0.45f, 0.25f, 0.9f));
-        var morgueButton = CreateButton(canvasObject.transform, font, "MorgueSelectButton", "Morgue", new Vector2(660f, -146f), new Color(0.5f, 0.2f, 0.2f, 0.9f));
-        var mausoleumButton = CreateButton(canvasObject.transform, font, "MausoleumSelectButton", "Mausoleum", new Vector2(820f, -146f), new Color(0.4f, 0.2f, 0.55f, 0.9f));
+        var selectButton = CreateButton(buttonRow, font, "SelectModeButton", "Select", new Color(0.2f, 0.35f, 0.6f, 0.9f));
+        var graveButton = CreateButton(buttonRow, font, "GraveSelectButton", "Grave", new Color(0.2f, 0.45f, 0.25f, 0.9f));
+        var morgueButton = CreateButton(buttonRow, font, "MorgueSelectButton", "Morgue", new Color(0.5f, 0.2f, 0.2f, 0.9f));
+        var mausoleumButton = CreateButton(buttonRow, font, "MausoleumSelectButton", "Mausoleum", new Color(0.4f, 0.2f, 0.55f, 0.9f));
 
         hudController.ectoplasmText = label;
         hudController.selectedBuildingText = selectedLabel;
@@ -115,19 +149,42 @@ public class UIHudController : MonoBehaviour
         hudController.graveSelectButton = graveButton;
         hudController.morgueSelectButton = morgueButton;
         hudController.mausoleumSelectButton = mausoleumButton;
+        hudController.topBarRect = topBarRect;
         return hudController;
     }
 
-    private static Button CreateButton(Transform parent, Font font, string name, string text, Vector2 anchoredPos, Color backgroundColor)
+    private static Transform CreateRow(Transform parent, string rowName, float spacing = 16f)
+    {
+        var rowObject = new GameObject(rowName, typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        rowObject.transform.SetParent(parent, false);
+
+        var rowLayout = rowObject.GetComponent<HorizontalLayoutGroup>();
+        rowLayout.spacing = spacing;
+        rowLayout.childAlignment = TextAnchor.MiddleLeft;
+        rowLayout.childControlWidth = false;
+        rowLayout.childControlHeight = false;
+        rowLayout.childForceExpandWidth = false;
+        rowLayout.childForceExpandHeight = false;
+
+        var rowElement = rowObject.AddComponent<LayoutElement>();
+        rowElement.minHeight = 50f;
+        rowElement.preferredHeight = 56f;
+
+        return rowObject.transform;
+    }
+
+    private static Button CreateButton(Transform parent, Font font, string name, string text, Color backgroundColor)
     {
         var buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
         buttonObject.transform.SetParent(parent, false);
         var buttonRect = buttonObject.GetComponent<RectTransform>();
-        buttonRect.anchorMin = new Vector2(0f, 1f);
-        buttonRect.anchorMax = new Vector2(0f, 1f);
-        buttonRect.pivot = new Vector2(0f, 1f);
-        buttonRect.anchoredPosition = anchoredPos;
         buttonRect.sizeDelta = new Vector2(140f, 50f);
+
+        var layoutElement = buttonObject.AddComponent<LayoutElement>();
+        layoutElement.minWidth = 140f;
+        layoutElement.preferredWidth = 150f;
+        layoutElement.minHeight = 50f;
+        layoutElement.preferredHeight = 50f;
 
         var buttonImage = buttonObject.GetComponent<Image>();
         buttonImage.color = backgroundColor;
@@ -148,6 +205,32 @@ public class UIHudController : MonoBehaviour
         buttonText.color = Color.white;
 
         return buttonObject.GetComponent<Button>();
+    }
+
+    private float GetTopBarScreenHeightInternal()
+    {
+        var referenceHeight = topBarReferenceHeight;
+        if (topBarRect != null)
+        {
+            referenceHeight = Mathf.Max(referenceHeight, topBarRect.rect.height);
+        }
+
+        if (hudScaler == null)
+        {
+            return referenceHeight;
+        }
+
+        var reference = hudScaler.referenceResolution;
+        if (reference.x <= 0f || reference.y <= 0f)
+        {
+            return referenceHeight;
+        }
+
+        var widthScale = Screen.width / reference.x;
+        var heightScale = Screen.height / reference.y;
+        var match = hudScaler.matchWidthOrHeight;
+        var scaleFactor = Mathf.Pow(widthScale, 1f - match) * Mathf.Pow(heightScale, match);
+        return Mathf.Max(0f, referenceHeight * scaleFactor);
     }
 
     private static void CreateEventSystemIfMissing()
@@ -456,6 +539,24 @@ public class UIHudController : MonoBehaviour
             if (button != null)
             {
                 mausoleumSelectButton = button.GetComponent<Button>();
+            }
+        }
+
+        if (topBarRect == null)
+        {
+            var topBarObject = GameObject.Find("TopBar");
+            if (topBarObject != null)
+            {
+                topBarRect = topBarObject.GetComponent<RectTransform>();
+            }
+        }
+
+        if (hudScaler == null)
+        {
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas != null)
+            {
+                hudScaler = canvas.GetComponent<CanvasScaler>();
             }
         }
     }
