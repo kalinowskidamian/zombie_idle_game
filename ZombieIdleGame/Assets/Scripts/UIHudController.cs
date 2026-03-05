@@ -7,6 +7,7 @@ public class UIHudController : MonoBehaviour
 {
     [SerializeField] private Text ectoplasmText;
     [SerializeField] private Button addTenButton;
+    [SerializeField] private Button resetButton;
 
     public static UIHudController EnsureHudExists()
     {
@@ -73,8 +74,37 @@ public class UIHudController : MonoBehaviour
         buttonText.alignment = TextAnchor.MiddleCenter;
         buttonText.color = Color.white;
 
+        var resetButtonObject = new GameObject("ResetButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        resetButtonObject.transform.SetParent(canvasObject.transform, false);
+        var resetButtonRect = resetButtonObject.GetComponent<RectTransform>();
+        resetButtonRect.anchorMin = new Vector2(0f, 1f);
+        resetButtonRect.anchorMax = new Vector2(0f, 1f);
+        resetButtonRect.pivot = new Vector2(0f, 1f);
+        resetButtonRect.anchoredPosition = new Vector2(180f, -80f);
+        resetButtonRect.sizeDelta = new Vector2(140f, 50f);
+
+        var resetButtonImage = resetButtonObject.GetComponent<Image>();
+        resetButtonImage.color = new Color(0.7f, 0.2f, 0.2f, 0.9f);
+        var reset = resetButtonObject.GetComponent<Button>();
+
+        var resetButtonTextObject = new GameObject("Text", typeof(RectTransform), typeof(Text));
+        resetButtonTextObject.transform.SetParent(resetButtonObject.transform, false);
+        var resetButtonTextRect = resetButtonTextObject.GetComponent<RectTransform>();
+        resetButtonTextRect.anchorMin = Vector2.zero;
+        resetButtonTextRect.anchorMax = Vector2.one;
+        resetButtonTextRect.offsetMin = Vector2.zero;
+        resetButtonTextRect.offsetMax = Vector2.zero;
+
+        var resetButtonText = resetButtonTextObject.GetComponent<Text>();
+        resetButtonText.font = font;
+        resetButtonText.fontSize = 28;
+        resetButtonText.text = "RESET";
+        resetButtonText.alignment = TextAnchor.MiddleCenter;
+        resetButtonText.color = Color.white;
+
         hudController.ectoplasmText = label;
         hudController.addTenButton = button;
+        hudController.resetButton = reset;
         return hudController;
     }
 
@@ -108,6 +138,12 @@ public class UIHudController : MonoBehaviour
             addTenButton.onClick.AddListener(HandleAddTenClicked);
         }
 
+        if (resetButton != null)
+        {
+            resetButton.onClick.RemoveListener(HandleResetClicked);
+            resetButton.onClick.AddListener(HandleResetClicked);
+        }
+
         RefreshEctoplasmLabel();
     }
 
@@ -121,6 +157,11 @@ public class UIHudController : MonoBehaviour
         if (addTenButton != null)
         {
             addTenButton.onClick.RemoveListener(HandleAddTenClicked);
+        }
+
+        if (resetButton != null)
+        {
+            resetButton.onClick.RemoveListener(HandleResetClicked);
         }
     }
 
@@ -136,6 +177,18 @@ public class UIHudController : MonoBehaviour
         GameBootstrap.State.ectoplasm += 10;
         GameBootstrap.State.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         SaveSystem.Save(GameBootstrap.State);
+        RefreshEctoplasmLabel();
+    }
+
+    private void HandleResetClicked()
+    {
+        SaveSystem.Delete();
+        GameBootstrap.ResetState();
+        GameBootstrap.State.buildingInstances?.Clear();
+        SaveSystem.Save(GameBootstrap.State);
+        GridManager.ClearBuildingsVisuals();
+
+        Debug.Log("Save reset");
         RefreshEctoplasmLabel();
     }
 
@@ -159,7 +212,28 @@ public class UIHudController : MonoBehaviour
 
         if (addTenButton == null)
         {
-            addTenButton = FindObjectOfType<Button>();
+            var buttons = FindObjectsOfType<Button>();
+            for (var i = 0; i < buttons.Length; i++)
+            {
+                if (buttons[i].name == "AddTenButton")
+                {
+                    addTenButton = buttons[i];
+                    break;
+                }
+            }
+        }
+
+        if (resetButton == null)
+        {
+            var buttons = FindObjectsOfType<Button>();
+            for (var i = 0; i < buttons.Length; i++)
+            {
+                if (buttons[i].name == "ResetButton")
+                {
+                    resetButton = buttons[i];
+                    break;
+                }
+            }
         }
     }
 }

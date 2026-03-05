@@ -13,6 +13,14 @@ public static class SaveSystem
         File.WriteAllText(SavePath, json);
     }
 
+    public static void Delete()
+    {
+        if (File.Exists(SavePath))
+        {
+            File.Delete(SavePath);
+        }
+    }
+
     public static GameState LoadOrDefault()
     {
         if (!File.Exists(SavePath))
