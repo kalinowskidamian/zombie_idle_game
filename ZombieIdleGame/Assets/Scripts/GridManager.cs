@@ -8,14 +8,13 @@ public class GridManager : MonoBehaviour
 {
     private const int GridWidth = 8;
     private const int GridHeight = 8;
-    private const float CellSize = 1f;
-
     private static Sprite cachedSquareSprite;
     private static GridManager instance;
 
     private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
 
     private Camera mainCamera;
+    private Grid grid;
     private Transform tileRoot;
     private Transform buildingRoot;
 
@@ -45,6 +44,12 @@ public class GridManager : MonoBehaviour
     {
         instance = this;
         mainCamera = Camera.main;
+        grid = GetComponent<Grid>();
+        if (grid == null)
+        {
+            grid = gameObject.AddComponent<Grid>();
+        }
+
         EnsureRoots();
         if (!HasBackgroundTilemap())
         {
@@ -112,25 +117,26 @@ public class GridManager : MonoBehaviour
     private bool TryGetGridPositionFromMouse(out Vector2Int gridPos)
     {
         var mousePosition = Input.mousePosition;
-        mousePosition.z = Mathf.Abs(mainCamera.transform.position.z);
+        mousePosition.z = Mathf.Abs(mainCamera.transform.position.z - 0f);
 
-        var world = mainCamera.ScreenToWorldPoint(mousePosition);
-        return TryWorldToGrid(world, out gridPos);
-    }
+        var worldPos = mainCamera.ScreenToWorldPoint(mousePosition);
+        worldPos.z = 0f;
 
-    private static bool TryWorldToGrid(Vector3 world, out Vector2Int gridPos)
-    {
-        var x = Mathf.FloorToInt(world.x / CellSize);
-        var y = Mathf.FloorToInt(world.y / CellSize);
+        var cell = grid.WorldToCell(worldPos);
+        gridPos = new Vector2Int(cell.x, cell.y);
 
-        var isInside = x >= 0 && x < GridWidth && y >= 0 && y < GridHeight;
-        gridPos = new Vector2Int(x, y);
+        Debug.Log($"[GridManager] Click world: {worldPos}, cell: ({cell.x}, {cell.y})");
+
+        var isInside = cell.x >= 0 && cell.x < GridWidth && cell.y >= 0 && cell.y < GridHeight;
         return isInside;
     }
 
-    private static Vector3 GridToWorldCenter(Vector2Int gridPos)
+    private Vector3 GridToWorldCenter(Vector2Int gridPos)
     {
-        return new Vector3((gridPos.x + 0.5f) * CellSize, (gridPos.y + 0.5f) * CellSize, 0f);
+        var cell = new Vector3Int(gridPos.x, gridPos.y, 0);
+        var center = grid.GetCellCenterWorld(cell);
+        center.z = 0f;
+        return center;
     }
 
     private void EnsureRoots()
