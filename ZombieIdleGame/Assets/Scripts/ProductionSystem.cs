@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class ProductionSystem : MonoBehaviour
 {
-    private const double GraveProductionPerSecond = 0.5d;
     private const float SaveIntervalSeconds = 5f;
 
     private float saveTimer;
@@ -34,7 +33,7 @@ public class ProductionSystem : MonoBehaviour
             return;
         }
 
-        var rate = GetProductionRatePerSecond(state);
+        var rate = ProductionCalculator.GetProductionRatePerSecond(state);
         if (rate <= 0d)
         {
             return;
@@ -67,24 +66,5 @@ public class ProductionSystem : MonoBehaviour
 
         GameBootstrap.State.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         SaveSystem.Save(GameBootstrap.State);
-    }
-
-    private static double GetProductionRatePerSecond(GameState state)
-    {
-        if (state.buildingInstances == null)
-        {
-            return 0d;
-        }
-
-        var graveCount = 0;
-        for (var i = 0; i < state.buildingInstances.Count; i++)
-        {
-            if (state.buildingInstances[i].buildingId == "grave")
-            {
-                graveCount++;
-            }
-        }
-
-        return graveCount * GraveProductionPerSecond;
     }
 }

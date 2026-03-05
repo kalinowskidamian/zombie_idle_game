@@ -8,7 +8,6 @@ public class GridManager : MonoBehaviour
     private const int GridWidth = 8;
     private const int GridHeight = 8;
     private const float CellSize = 1f;
-    private const long GraveCost = 25;
 
     private static Sprite cachedSquareSprite;
     private static GridManager instance;
@@ -76,28 +75,31 @@ public class GridManager : MonoBehaviour
             return;
         }
 
-        TryPlaceGrave(gridPos);
+        TryPlaceBuilding(gridPos);
     }
 
-    private void TryPlaceGrave(Vector2Int gridPos)
+    private void TryPlaceBuilding(Vector2Int gridPos)
     {
         if (occupiedCells.Contains(gridPos))
         {
             return;
         }
 
+        var buildingId = UIHudController.SelectedBuildingId;
+        var cost = BuildingCatalog.GetCost(buildingId);
+
         var state = GameBootstrap.State;
-        if (state == null || state.ectoplasm < GraveCost)
+        if (state == null || state.ectoplasm < cost)
         {
             return;
         }
 
-        state.ectoplasm -= GraveCost;
+        state.ectoplasm -= cost;
         state.buildingInstances ??= new List<BuildingInstance>();
-        state.buildingInstances.Add(new BuildingInstance("grave", gridPos.x, gridPos.y, 1));
+        state.buildingInstances.Add(new BuildingInstance(buildingId, gridPos.x, gridPos.y, 1));
         state.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-        SpawnBuildingVisual(gridPos, Color.magenta);
+        SpawnBuildingVisual(buildingId, gridPos, BuildingCatalog.GetColor(buildingId));
         occupiedCells.Add(gridPos);
 
         SaveSystem.Save(state);
@@ -188,7 +190,7 @@ public class GridManager : MonoBehaviour
         {
             var building = state.buildingInstances[i];
             var gridPos = new Vector2Int(building.x, building.y);
-            var isValid = building.buildingId == "grave"
+            var isValid = BuildingCatalog.IsKnownBuilding(building.buildingId)
                 && building.x >= 0
                 && building.x < GridWidth
                 && building.y >= 0
@@ -199,7 +201,7 @@ public class GridManager : MonoBehaviour
                 continue;
             }
 
-            SpawnBuildingVisual(gridPos, new Color(0.45f, 0.1f, 0.55f, 1f));
+            SpawnBuildingVisual(building.buildingId, gridPos, BuildingCatalog.GetColor(building.buildingId));
             occupiedCells.Add(gridPos);
         }
     }
@@ -219,9 +221,9 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    private void SpawnBuildingVisual(Vector2Int gridPos, Color color)
+    private void SpawnBuildingVisual(string buildingId, Vector2Int gridPos, Color color)
     {
-        var buildingObject = new GameObject($"Grave_{gridPos.x}_{gridPos.y}");
+        var buildingObject = new GameObject($"{buildingId}_{gridPos.x}_{gridPos.y}");
         buildingObject.transform.SetParent(buildingRoot, false);
         buildingObject.transform.position = GridToWorldCenter(gridPos);
         buildingObject.transform.localScale = new Vector3(0.75f, 0.75f, 1f);
