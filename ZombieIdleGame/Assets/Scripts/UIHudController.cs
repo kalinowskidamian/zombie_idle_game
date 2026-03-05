@@ -228,6 +228,7 @@ public class UIHudController : MonoBehaviour
         GameBootstrap.State.buildingInstances?.Clear();
         SaveSystem.Save(GameBootstrap.State);
         GridManager.ClearBuildingsVisuals();
+        BuildingSelectionManager.InstanceOrNull?.ClearSelection();
 
         SelectedBuildingId = BuildingCatalog.GraveId;
         RefreshSelectedBuildingLabel();

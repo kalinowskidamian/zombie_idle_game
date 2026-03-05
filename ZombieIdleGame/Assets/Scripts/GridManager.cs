@@ -13,13 +13,26 @@ public class GridManager : MonoBehaviour
     private static Sprite cachedOutlineSprite;
 
     private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
+    private readonly Dictionary<Vector2Int, BuildingVisual> buildingVisuals = new Dictionary<Vector2Int, BuildingVisual>();
+    private readonly List<SpriteRenderer> mausoleumRangeOverlays = new List<SpriteRenderer>();
 
     private Camera mainCamera;
     private Grid grid;
     private Transform tileRoot;
     private Transform buildingRoot;
+    private Transform overlayRoot;
     private SpriteRenderer ghostRenderer;
     private SpriteRenderer highlightRenderer;
+    private SpriteRenderer selectionRenderer;
+
+    private sealed class BuildingVisual
+    {
+        public BuildingInstance Building;
+        public SpriteRenderer Renderer;
+        public Color BaseColor;
+    }
+
+    public static GridManager Instance => instance;
 
     public static GridManager EnsureGridExists()
     {
@@ -41,6 +54,65 @@ public class GridManager : MonoBehaviour
         }
 
         instance.ClearBuildingVisualsInternal();
+    }
+
+    public void RefreshVisualsFromState()
+    {
+        RebuildBuildingsFromState();
+    }
+
+    public void ApplySelectionVisuals(BuildingInstance selected)
+    {
+        for (var i = 0; i < mausoleumRangeOverlays.Count; i++)
+        {
+            if (mausoleumRangeOverlays[i] != null)
+            {
+                Destroy(mausoleumRangeOverlays[i].gameObject);
+            }
+        }
+
+        mausoleumRangeOverlays.Clear();
+
+        foreach (var visual in buildingVisuals.Values)
+        {
+            if (visual?.Renderer == null)
+            {
+                continue;
+            }
+
+            visual.Renderer.color = visual.BaseColor;
+        }
+
+        if (selectionRenderer != null)
+        {
+            selectionRenderer.gameObject.SetActive(false);
+        }
+
+        if (selected == null)
+        {
+            return;
+        }
+
+        var gridPos = new Vector2Int(selected.x, selected.y);
+        if (selectionRenderer != null)
+        {
+            selectionRenderer.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0f, -0.015f);
+            selectionRenderer.gameObject.SetActive(true);
+        }
+
+        if (!buildingVisuals.TryGetValue(gridPos, out var selectedVisual))
+        {
+            return;
+        }
+
+        selectedVisual.Renderer.color = Color.Lerp(selectedVisual.BaseColor, Color.white, 0.45f);
+
+        if (selected.buildingId != BuildingCatalog.MausoleumId)
+        {
+            return;
+        }
+
+        HighlightMausoleumRangeAndTargets(selected);
     }
 
     private void Awake()
@@ -91,7 +163,45 @@ public class GridManager : MonoBehaviour
             return;
         }
 
+        if (TrySelectExistingBuilding(gridPos))
+        {
+            return;
+        }
+
+        BuildingSelectionManager.EnsureExists().ClearSelection();
         TryPlaceBuilding(gridPos);
+    }
+
+    private bool TrySelectExistingBuilding(Vector2Int gridPos)
+    {
+        var building = GetBuildingAt(gridPos);
+        if (building == null)
+        {
+            return false;
+        }
+
+        BuildingSelectionManager.EnsureExists().SelectBuilding(building);
+        return true;
+    }
+
+    private BuildingInstance GetBuildingAt(Vector2Int gridPos)
+    {
+        var state = GameBootstrap.State;
+        if (state?.buildingInstances == null)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < state.buildingInstances.Count; i++)
+        {
+            var building = state.buildingInstances[i];
+            if (building.x == gridPos.x && building.y == gridPos.y)
+            {
+                return building;
+            }
+        }
+
+        return null;
     }
 
     private void TryPlaceBuilding(Vector2Int gridPos)
@@ -107,10 +217,11 @@ public class GridManager : MonoBehaviour
         var state = GameBootstrap.State;
         state.ectoplasm -= cost;
         state.buildingInstances ??= new List<BuildingInstance>();
-        state.buildingInstances.Add(new BuildingInstance(buildingId, gridPos.x, gridPos.y, 1));
+        var instanceBuilding = new BuildingInstance(buildingId, gridPos.x, gridPos.y, 1);
+        state.buildingInstances.Add(instanceBuilding);
         state.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-        SpawnBuildingVisual(buildingId, gridPos, BuildingCatalog.GetColor(buildingId));
+        SpawnBuildingVisual(instanceBuilding, gridPos, BuildingCatalog.GetColor(buildingId));
         occupiedCells.Add(gridPos);
 
         SaveSystem.Save(state);
@@ -175,8 +286,17 @@ public class GridManager : MonoBehaviour
             buildings = buildingObject.transform;
         }
 
+        var overlays = transform.Find("Overlays");
+        if (overlays == null)
+        {
+            var overlayObject = new GameObject("Overlays");
+            overlayObject.transform.SetParent(transform, false);
+            overlays = overlayObject.transform;
+        }
+
         tileRoot = tiles;
         buildingRoot = buildings;
+        overlayRoot = overlays;
     }
 
     private bool HasBackgroundTilemap()
@@ -221,6 +341,18 @@ public class GridManager : MonoBehaviour
             highlightRenderer.sortingOrder = 19;
             highlightObject.transform.localScale = new Vector3(0.96f, 0.96f, 1f);
             highlightObject.SetActive(false);
+        }
+
+        if (selectionRenderer == null)
+        {
+            var selectionObject = new GameObject("SelectionHighlight");
+            selectionObject.transform.SetParent(transform, false);
+            selectionRenderer = selectionObject.AddComponent<SpriteRenderer>();
+            selectionRenderer.sprite = GetOutlineSprite();
+            selectionRenderer.color = new Color(1f, 0.85f, 0.2f, 1f);
+            selectionRenderer.sortingOrder = 21;
+            selectionObject.transform.localScale = new Vector3(1.03f, 1.03f, 1f);
+            selectionObject.SetActive(false);
         }
 
         if (ghostRenderer == null)
@@ -315,14 +447,28 @@ public class GridManager : MonoBehaviour
                 continue;
             }
 
-            SpawnBuildingVisual(building.buildingId, gridPos, BuildingCatalog.GetColor(building.buildingId));
+            SpawnBuildingVisual(building, gridPos, BuildingCatalog.GetColor(building.buildingId));
             occupiedCells.Add(gridPos);
+        }
+
+        var selector = BuildingSelectionManager.InstanceOrNull;
+        if (selector != null)
+        {
+            if (selector.SelectedBuilding != null)
+            {
+                selector.SelectBuilding(selector.SelectedBuilding);
+            }
+            else
+            {
+                ApplySelectionVisuals(null);
+            }
         }
     }
 
     private void ClearBuildingVisualsInternal()
     {
         occupiedCells.Clear();
+        buildingVisuals.Clear();
 
         if (buildingRoot == null)
         {
@@ -335,17 +481,88 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    private void SpawnBuildingVisual(string buildingId, Vector2Int gridPos, Color tintColor)
+    private void SpawnBuildingVisual(BuildingInstance building, Vector2Int gridPos, Color tintColor)
     {
-        var buildingObject = new GameObject($"{buildingId}_{gridPos.x}_{gridPos.y}");
+        var buildingObject = new GameObject($"{building.buildingId}_{gridPos.x}_{gridPos.y}");
         buildingObject.transform.SetParent(buildingRoot, false);
         buildingObject.transform.position = GridToWorldCenter(gridPos);
         buildingObject.transform.localScale = new Vector3(0.75f, 0.75f, 1f);
 
         var renderer = buildingObject.AddComponent<SpriteRenderer>();
-        renderer.sprite = BuildingCatalog.GetSprite(buildingId);
-        renderer.color = Color.Lerp(Color.white, tintColor, 0.22f);
+        renderer.sprite = BuildingCatalog.GetSprite(building.buildingId);
         renderer.sortingOrder = 5;
+
+        var baseColor = Color.Lerp(Color.white, tintColor, 0.22f);
+        renderer.color = baseColor;
+        buildingVisuals[gridPos] = new BuildingVisual
+        {
+            Building = building,
+            Renderer = renderer,
+            BaseColor = baseColor
+        };
+    }
+
+    private void HighlightMausoleumRangeAndTargets(BuildingInstance mausoleum)
+    {
+        var state = GameBootstrap.State;
+        if (state?.buildingInstances == null)
+        {
+            return;
+        }
+
+        for (var offsetX = -1; offsetX <= 1; offsetX++)
+        {
+            for (var offsetY = -1; offsetY <= 1; offsetY++)
+            {
+                if (offsetX == 0 && offsetY == 0)
+                {
+                    continue;
+                }
+
+                var x = mausoleum.x + offsetX;
+                var y = mausoleum.y + offsetY;
+                if (x < 0 || x >= GridWidth || y < 0 || y >= GridHeight)
+                {
+                    continue;
+                }
+
+                CreateRangeOverlay(new Vector2Int(x, y));
+            }
+        }
+
+        for (var i = 0; i < state.buildingInstances.Count; i++)
+        {
+            var building = state.buildingInstances[i];
+            if (building == mausoleum || building.buildingId == BuildingCatalog.MausoleumId)
+            {
+                continue;
+            }
+
+            if (!ProductionCalculator.IsInMausoleumRange(mausoleum.x, mausoleum.y, building.x, building.y))
+            {
+                continue;
+            }
+
+            var pos = new Vector2Int(building.x, building.y);
+            if (buildingVisuals.TryGetValue(pos, out var visual))
+            {
+                visual.Renderer.color = Color.Lerp(visual.BaseColor, Color.green, 0.45f);
+            }
+        }
+    }
+
+    private void CreateRangeOverlay(Vector2Int gridPos)
+    {
+        var overlayObject = new GameObject($"MausoleumRange_{gridPos.x}_{gridPos.y}");
+        overlayObject.transform.SetParent(overlayRoot, false);
+        overlayObject.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0f, -0.02f);
+        overlayObject.transform.localScale = new Vector3(0.95f, 0.95f, 1f);
+
+        var renderer = overlayObject.AddComponent<SpriteRenderer>();
+        renderer.sprite = GetSquareSprite();
+        renderer.color = new Color(0.35f, 0.85f, 0.35f, 0.16f);
+        renderer.sortingOrder = 4;
+        mausoleumRangeOverlays.Add(renderer);
     }
 
     private static Sprite GetSquareSprite()
