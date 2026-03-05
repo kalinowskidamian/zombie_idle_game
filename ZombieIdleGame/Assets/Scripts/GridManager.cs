@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Tilemaps;
 
 public class GridManager : MonoBehaviour
 {
@@ -45,7 +46,10 @@ public class GridManager : MonoBehaviour
         instance = this;
         mainCamera = Camera.main;
         EnsureRoots();
-        DrawGridTiles();
+        if (!HasBackgroundTilemap())
+        {
+            DrawGridTiles();
+        }
         RebuildBuildingsFromState();
     }
 
@@ -151,6 +155,12 @@ public class GridManager : MonoBehaviour
         buildingRoot = buildings;
     }
 
+
+    private bool HasBackgroundTilemap()
+    {
+        var tilemapTransform = transform.Find("BackgroundTilemap");
+        return tilemapTransform != null && tilemapTransform.GetComponent<Tilemap>() != null;
+    }
     private void DrawGridTiles()
     {
         if (tileRoot.childCount > 0)
