@@ -163,13 +163,24 @@ public class GridManager : MonoBehaviour
             return;
         }
 
+        if (UIHudController.CurrentMode == UIHudController.InteractionMode.Select)
+        {
+            HandleSelectModeClick(gridPos);
+            return;
+        }
+
+        TryPlaceBuilding(gridPos);
+    }
+
+
+    private void HandleSelectModeClick(Vector2Int gridPos)
+    {
         if (TrySelectExistingBuilding(gridPos))
         {
             return;
         }
 
         BuildingSelectionManager.EnsureExists().ClearSelection();
-        TryPlaceBuilding(gridPos);
     }
 
     private bool TrySelectExistingBuilding(Vector2Int gridPos)
@@ -211,7 +222,10 @@ public class GridManager : MonoBehaviour
             return;
         }
 
-        var buildingId = UIHudController.SelectedBuildingId;
+        if (!UIHudController.TryGetBuildBuildingId(out var buildingId))
+        {
+            return;
+        }
         var cost = BuildingCatalog.GetCost(buildingId);
 
         var state = GameBootstrap.State;
@@ -244,8 +258,7 @@ public class GridManager : MonoBehaviour
 
     private bool CanPlaceBuilding(Vector2Int gridPos, out string buildingId)
     {
-        buildingId = UIHudController.SelectedBuildingId;
-        if (!BuildingCatalog.IsKnownBuilding(buildingId) || occupiedCells.Contains(gridPos))
+        if (!UIHudController.TryGetBuildBuildingId(out buildingId) || occupiedCells.Contains(gridPos))
         {
             return false;
         }
@@ -403,10 +416,10 @@ public class GridManager : MonoBehaviour
         highlightRenderer.transform.position = center + new Vector3(0f, 0f, -0.01f);
         highlightRenderer.gameObject.SetActive(true);
 
-        var selectedBuilding = UIHudController.SelectedBuildingId;
-        if (!BuildingCatalog.IsKnownBuilding(selectedBuilding))
+        if (!UIHudController.TryGetBuildBuildingId(out var selectedBuilding))
         {
             ghostRenderer.gameObject.SetActive(false);
+            highlightRenderer.gameObject.SetActive(false);
             return;
         }
 
