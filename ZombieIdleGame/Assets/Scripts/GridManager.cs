@@ -16,7 +16,6 @@ public class GridManager : MonoBehaviour
     private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
     private readonly Dictionary<Vector2Int, BuildingVisual> buildingVisuals = new Dictionary<Vector2Int, BuildingVisual>();
     private readonly List<SpriteRenderer> mausoleumRangeOverlays = new List<SpriteRenderer>();
-    private readonly List<FloatingText> floatingTexts = new List<FloatingText>();
 
     private Camera mainCamera;
     private Grid grid;
@@ -37,11 +36,6 @@ public class GridManager : MonoBehaviour
         public Color BaseColor;
     }
 
-    private sealed class FloatingText
-    {
-        public TextMesh TextMesh;
-        public float Lifetime;
-    }
 
     public static GridManager Instance => instance;
 
@@ -151,7 +145,6 @@ public class GridManager : MonoBehaviour
         UpdateHoverVisuals();
         UpdateCollectIndicators();
         UpdateBuildingCountdowns();
-        UpdateFloatingTexts();
 
         if (!Input.GetMouseButtonDown(0))
         {
@@ -271,7 +264,17 @@ public class GridManager : MonoBehaviour
         state.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         SaveSystem.Save(state);
 
-        ShowFloatingText(new Vector2Int(building.x, building.y), $"+{whole}", resource);
+        if (buildingVisuals.TryGetValue(new Vector2Int(building.x, building.y), out var visual) && visual?.Renderer != null)
+        {
+            var textPos = visual.Renderer.transform.position + new Vector3(0f, 0.45f, 0f);
+            FloatingTextSpawner.Spawn(textPos, $"+{whole}", ResourceLedger.GetColor(resource));
+        }
+        else
+        {
+            var textPos = GridToWorldCenter(new Vector2Int(building.x, building.y)) + new Vector3(0f, 0.45f, 0f);
+            FloatingTextSpawner.Spawn(textPos, $"+{whole}", ResourceLedger.GetColor(resource));
+        }
+
         RefreshVisualsFromState();
 
         return whole;
@@ -718,53 +721,6 @@ public class GridManager : MonoBehaviour
             }
 
             visual.BuildCountdownText.text = BuildingTiming.FormatTimeLeft(remaining);
-        }
-    }
-
-    private void ShowFloatingText(Vector2Int gridPos, string text, ResourceKind resource)
-    {
-        var obj = new GameObject("CollectText");
-        obj.transform.SetParent(indicatorRoot, false);
-        obj.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0.45f, 0f);
-
-        var textMesh = obj.AddComponent<TextMesh>();
-        textMesh.text = text;
-        textMesh.characterSize = 0.15f;
-        textMesh.fontSize = 64;
-        textMesh.color = ResourceLedger.GetColor(resource);
-        textMesh.anchor = TextAnchor.MiddleCenter;
-        textMesh.alignment = TextAlignment.Center;
-
-        floatingTexts.Add(new FloatingText
-        {
-            TextMesh = textMesh,
-            Lifetime = 1f
-        });
-    }
-
-    private void UpdateFloatingTexts()
-    {
-        for (var i = floatingTexts.Count - 1; i >= 0; i--)
-        {
-            var item = floatingTexts[i];
-            if (item.TextMesh == null)
-            {
-                floatingTexts.RemoveAt(i);
-                continue;
-            }
-
-            item.Lifetime -= Time.deltaTime;
-            item.TextMesh.transform.position += new Vector3(0f, Time.deltaTime * 0.5f, 0f);
-
-            var color = item.TextMesh.color;
-            color.a = Mathf.Clamp01(item.Lifetime);
-            item.TextMesh.color = color;
-
-            if (item.Lifetime <= 0f)
-            {
-                Destroy(item.TextMesh.gameObject);
-                floatingTexts.RemoveAt(i);
-            }
         }
     }
 
