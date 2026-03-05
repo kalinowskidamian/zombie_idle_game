@@ -14,6 +14,7 @@ public class GameBootstrap : MonoBehaviour
         Debug.Log($"Offline progress: {result.OfflineSeconds}s, added {result.GainedEctoplasm} ectoplasm.");
 
         UIHudController.EnsureHudExists();
+        GridManager.EnsureGridExists();
     }
 
     private void OnApplicationQuit()
