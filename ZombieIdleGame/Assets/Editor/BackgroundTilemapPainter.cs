@@ -54,7 +54,7 @@ public static class BackgroundTilemapPainter
             backgroundTilemap.SetTile(new Vector3Int(4, y, 0), path);
         }
 
-        var random = new Random(123);
+        var rng = new System.Random(123);
         for (int y = 0; y < Height; y++)
         {
             for (int x = 0; x < Width; x++)
@@ -65,7 +65,7 @@ public static class BackgroundTilemapPainter
                     continue;
                 }
 
-                int roll = random.Next(100);
+                int roll = rng.Next(100);
                 if (roll < 14)
                 {
                     backgroundTilemap.SetTile(new Vector3Int(x, y, 0), dirt);
