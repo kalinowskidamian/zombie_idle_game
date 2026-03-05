@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public static class BuildingCatalog
@@ -21,6 +22,32 @@ public static class BuildingCatalog
         }
     }
 
+    public static long GetUpgradeCost(string buildingId, int currentLevel)
+    {
+        var baseCost = GetCost(buildingId);
+        if (baseCost == long.MaxValue)
+        {
+            return baseCost;
+        }
+
+        var safeLevel = Math.Max(1, currentLevel);
+        var exponent = safeLevel - 1;
+        var result = baseCost * Math.Pow(1.5d, exponent);
+        return (long)Math.Round(result, MidpointRounding.AwayFromZero);
+    }
+
+    public static long GetTotalSpentForLevel(string buildingId, int level)
+    {
+        var safeLevel = Math.Max(1, level);
+        long total = 0;
+        for (var paidLevel = 1; paidLevel <= safeLevel; paidLevel++)
+        {
+            total += GetUpgradeCost(buildingId, paidLevel);
+        }
+
+        return total;
+    }
+
     public static double GetBaseProduction(string buildingId)
     {
         switch (buildingId)
@@ -33,6 +60,32 @@ public static class BuildingCatalog
                 return 0d;
             default:
                 return 0d;
+        }
+    }
+
+    public static double GetProductionAtLevel(string buildingId, int level)
+    {
+        var baseProduction = GetBaseProduction(buildingId);
+        if (baseProduction <= 0d)
+        {
+            return 0d;
+        }
+
+        var safeLevel = Math.Max(1, level);
+        return baseProduction * Math.Pow(1.2d, safeLevel - 1);
+    }
+
+    public static double GetMausoleumBonusPercent(int level)
+    {
+        var clampedLevel = Mathf.Clamp(level, 1, 3);
+        switch (clampedLevel)
+        {
+            case 1:
+                return 20d;
+            case 2:
+                return 30d;
+            default:
+                return 40d;
         }
     }
 
