@@ -76,7 +76,14 @@ public static class BuildingTiming
             return false;
         }
 
-        return ResourceLedger.GetStored(building, resource) >= GetCollectThreshold(state, building);
+        var stored = ResourceLedger.GetStored(building, resource);
+        var wholeCollectable = Math.Floor(stored);
+        if (wholeCollectable < 1d)
+        {
+            return false;
+        }
+
+        return stored >= GetCollectThreshold(state, building);
     }
 
     public static double GetStorageCap(GameState state, BuildingInstance building)
