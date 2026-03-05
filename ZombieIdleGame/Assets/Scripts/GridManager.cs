@@ -11,6 +11,7 @@ public class GridManager : MonoBehaviour
     private const long GraveCost = 25;
 
     private static Sprite cachedSquareSprite;
+    private static GridManager instance;
 
     private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
 
@@ -30,8 +31,19 @@ public class GridManager : MonoBehaviour
         return gridObject.AddComponent<GridManager>();
     }
 
+    public static void ClearBuildingsVisuals()
+    {
+        if (instance == null)
+        {
+            return;
+        }
+
+        instance.ClearBuildingVisualsInternal();
+    }
+
     private void Awake()
     {
+        instance = this;
         mainCamera = Camera.main;
         EnsureRoots();
         DrawGridTiles();
@@ -163,7 +175,7 @@ public class GridManager : MonoBehaviour
 
     private void RebuildBuildingsFromState()
     {
-        occupiedCells.Clear();
+        ClearBuildingVisualsInternal();
 
         var state = GameBootstrap.State;
         if (state == null)
@@ -189,6 +201,21 @@ public class GridManager : MonoBehaviour
 
             SpawnBuildingVisual(gridPos, new Color(0.45f, 0.1f, 0.55f, 1f));
             occupiedCells.Add(gridPos);
+        }
+    }
+
+    private void ClearBuildingVisualsInternal()
+    {
+        occupiedCells.Clear();
+
+        if (buildingRoot == null)
+        {
+            return;
+        }
+
+        for (var i = buildingRoot.childCount - 1; i >= 0; i--)
+        {
+            Destroy(buildingRoot.GetChild(i).gameObject);
         }
     }
 

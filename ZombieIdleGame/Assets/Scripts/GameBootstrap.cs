@@ -4,6 +4,12 @@ public class GameBootstrap : MonoBehaviour
 {
     public static GameState State { get; private set; }
 
+    public static void ResetState()
+    {
+        State = new GameState();
+        SaveSystem.Save(State);
+    }
+
     private void Awake()
     {
         State = SaveSystem.LoadOrDefault();
