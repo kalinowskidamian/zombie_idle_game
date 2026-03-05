@@ -15,6 +15,7 @@ public class GameBootstrap : MonoBehaviour
 
         UIHudController.EnsureHudExists();
         GridManager.EnsureGridExists();
+        ProductionSystem.EnsureExists();
     }
 
     private void OnApplicationQuit()
