@@ -5,15 +5,29 @@ using UnityEngine.EventSystems;
 
 public class UIHudController : MonoBehaviour
 {
+    public enum InteractionMode
+    {
+        Select,
+        Build
+    }
+
     [SerializeField] private Text ectoplasmText;
     [SerializeField] private Text selectedBuildingText;
     [SerializeField] private Button addTenButton;
     [SerializeField] private Button resetButton;
+    [SerializeField] private Button selectModeButton;
     [SerializeField] private Button graveSelectButton;
     [SerializeField] private Button morgueSelectButton;
     [SerializeField] private Button mausoleumSelectButton;
 
-    public static string SelectedBuildingId { get; private set; } = BuildingCatalog.GraveId;
+    public static InteractionMode CurrentMode { get; private set; } = InteractionMode.Select;
+    public static string SelectedBuildingId { get; private set; }
+
+    public static bool TryGetBuildBuildingId(out string buildingId)
+    {
+        buildingId = SelectedBuildingId;
+        return CurrentMode == InteractionMode.Build && BuildingCatalog.IsKnownBuilding(buildingId);
+    }
 
     public static UIHudController EnsureHudExists()
     {
@@ -71,14 +85,16 @@ public class UIHudController : MonoBehaviour
         var button = CreateButton(canvasObject.transform, font, "AddTenButton", "+10", new Vector2(20f, -80f), new Color(0.2f, 0.6f, 0.2f, 0.9f));
         var reset = CreateButton(canvasObject.transform, font, "ResetButton", "RESET", new Vector2(180f, -80f), new Color(0.7f, 0.2f, 0.2f, 0.9f));
 
-        var graveButton = CreateButton(canvasObject.transform, font, "GraveSelectButton", "Grave", new Vector2(20f, -180f), new Color(0.2f, 0.45f, 0.25f, 0.9f));
-        var morgueButton = CreateButton(canvasObject.transform, font, "MorgueSelectButton", "Morgue", new Vector2(180f, -180f), new Color(0.5f, 0.2f, 0.2f, 0.9f));
-        var mausoleumButton = CreateButton(canvasObject.transform, font, "MausoleumSelectButton", "Mausoleum", new Vector2(340f, -180f), new Color(0.4f, 0.2f, 0.55f, 0.9f));
+        var selectButton = CreateButton(canvasObject.transform, font, "SelectModeButton", "Select", new Vector2(20f, -180f), new Color(0.2f, 0.35f, 0.6f, 0.9f));
+        var graveButton = CreateButton(canvasObject.transform, font, "GraveSelectButton", "Grave", new Vector2(180f, -180f), new Color(0.2f, 0.45f, 0.25f, 0.9f));
+        var morgueButton = CreateButton(canvasObject.transform, font, "MorgueSelectButton", "Morgue", new Vector2(340f, -180f), new Color(0.5f, 0.2f, 0.2f, 0.9f));
+        var mausoleumButton = CreateButton(canvasObject.transform, font, "MausoleumSelectButton", "Mausoleum", new Vector2(500f, -180f), new Color(0.4f, 0.2f, 0.55f, 0.9f));
 
         hudController.ectoplasmText = label;
         hudController.selectedBuildingText = selectedLabel;
         hudController.addTenButton = button;
         hudController.resetButton = reset;
+        hudController.selectModeButton = selectButton;
         hudController.graveSelectButton = graveButton;
         hudController.morgueSelectButton = morgueButton;
         hudController.mausoleumSelectButton = mausoleumButton;
@@ -159,6 +175,12 @@ public class UIHudController : MonoBehaviour
             graveSelectButton.onClick.AddListener(HandleGraveSelected);
         }
 
+        if (selectModeButton != null)
+        {
+            selectModeButton.onClick.RemoveListener(HandleSelectModeSelected);
+            selectModeButton.onClick.AddListener(HandleSelectModeSelected);
+        }
+
         if (morgueSelectButton != null)
         {
             morgueSelectButton.onClick.RemoveListener(HandleMorgueSelected);
@@ -197,6 +219,11 @@ public class UIHudController : MonoBehaviour
             graveSelectButton.onClick.RemoveListener(HandleGraveSelected);
         }
 
+        if (selectModeButton != null)
+        {
+            selectModeButton.onClick.RemoveListener(HandleSelectModeSelected);
+        }
+
         if (morgueSelectButton != null)
         {
             morgueSelectButton.onClick.RemoveListener(HandleMorgueSelected);
@@ -230,26 +257,48 @@ public class UIHudController : MonoBehaviour
         GridManager.ClearBuildingsVisuals();
         BuildingSelectionManager.InstanceOrNull?.ClearSelection();
 
-        SelectedBuildingId = BuildingCatalog.GraveId;
-        RefreshSelectedBuildingLabel();
+        EnterSelectMode();
         RefreshEctoplasmLabel();
+    }
+
+    private void HandleSelectModeSelected()
+    {
+        EnterSelectMode();
     }
 
     private void HandleGraveSelected()
     {
-        SelectedBuildingId = BuildingCatalog.GraveId;
-        RefreshSelectedBuildingLabel();
+        EnterBuildMode(BuildingCatalog.GraveId);
     }
 
     private void HandleMorgueSelected()
     {
-        SelectedBuildingId = BuildingCatalog.MorgueId;
-        RefreshSelectedBuildingLabel();
+        EnterBuildMode(BuildingCatalog.MorgueId);
     }
 
     private void HandleMausoleumSelected()
     {
-        SelectedBuildingId = BuildingCatalog.MausoleumId;
+        EnterBuildMode(BuildingCatalog.MausoleumId);
+    }
+
+    private void EnterSelectMode()
+    {
+        CurrentMode = InteractionMode.Select;
+        SelectedBuildingId = null;
+        BuildingSelectionManager.InstanceOrNull?.ClearSelection();
+        RefreshSelectedBuildingLabel();
+    }
+
+    private void EnterBuildMode(string buildingId)
+    {
+        if (!BuildingCatalog.IsKnownBuilding(buildingId))
+        {
+            return;
+        }
+
+        CurrentMode = InteractionMode.Build;
+        SelectedBuildingId = buildingId;
+        BuildingSelectionManager.InstanceOrNull?.ClearSelection();
         RefreshSelectedBuildingLabel();
     }
 
@@ -271,7 +320,16 @@ public class UIHudController : MonoBehaviour
             return;
         }
 
-        selectedBuildingText.text = $"Selected: {BuildingCatalog.GetDisplayName(SelectedBuildingId)}";
+        if (CurrentMode == InteractionMode.Select)
+        {
+            selectedBuildingText.text = "Mode: Select";
+            return;
+        }
+
+        var selectedName = BuildingCatalog.IsKnownBuilding(SelectedBuildingId)
+            ? BuildingCatalog.GetDisplayName(SelectedBuildingId)
+            : "Unknown";
+        selectedBuildingText.text = $"Mode: Build ({selectedName})";
     }
 
     private void AutoAssignReferencesIfMissing()
@@ -318,6 +376,15 @@ public class UIHudController : MonoBehaviour
             if (button != null)
             {
                 graveSelectButton = button.GetComponent<Button>();
+            }
+        }
+
+        if (selectModeButton == null)
+        {
+            var button = GameObject.Find("SelectModeButton");
+            if (button != null)
+            {
+                selectModeButton = button.GetComponent<Button>();
             }
         }
 
