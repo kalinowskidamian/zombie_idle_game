@@ -250,24 +250,28 @@ public class GridManager : MonoBehaviour
             return 0;
         }
 
-        var whole = (long)Math.Floor(building.storedEctoplasm);
-        if (whole <= 0)
+        var resource = BuildingCatalog.GetProducedResource(building.buildingId);
+        if (resource == ResourceKind.None)
         {
             return 0;
         }
 
-        building.storedEctoplasm -= whole;
+        var whole = ResourceLedger.RemoveWholeStored(building, resource);
+        if (whole <= 0)
+        {
+            return 0;
+        }
 
         if (state == null)
         {
             return 0;
         }
 
-        state.ectoplasm += whole;
+        ResourceLedger.AddToBank(state, resource, whole);
         state.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         SaveSystem.Save(state);
 
-        ShowFloatingText(new Vector2Int(building.x, building.y), $"+{whole}");
+        ShowFloatingText(new Vector2Int(building.x, building.y), $"+{whole}", resource);
         RefreshVisualsFromState();
 
         return whole;
@@ -717,7 +721,7 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    private void ShowFloatingText(Vector2Int gridPos, string text)
+    private void ShowFloatingText(Vector2Int gridPos, string text, ResourceKind resource)
     {
         var obj = new GameObject("CollectText");
         obj.transform.SetParent(indicatorRoot, false);
@@ -727,7 +731,7 @@ public class GridManager : MonoBehaviour
         textMesh.text = text;
         textMesh.characterSize = 0.15f;
         textMesh.fontSize = 64;
-        textMesh.color = new Color(0.65f, 1f, 0.7f, 1f);
+        textMesh.color = ResourceLedger.GetColor(resource);
         textMesh.anchor = TextAnchor.MiddleCenter;
         textMesh.alignment = TextAlignment.Center;
 

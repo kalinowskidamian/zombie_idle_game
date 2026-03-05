@@ -56,21 +56,29 @@ public class ProductionSystem : MonoBehaviour
                 continue;
             }
 
+            var resource = BuildingCatalog.GetProducedResource(building.buildingId);
+            if (resource == ResourceKind.None)
+            {
+                continue;
+            }
+
             var storageCap = BuildingTiming.GetStorageCap(state, building);
             if (storageCap <= 0d)
             {
                 continue;
             }
 
-            if (building.storedEctoplasm >= storageCap)
+            var stored = ResourceLedger.GetStored(building, resource);
+            if (stored >= storageCap)
             {
-                building.storedEctoplasm = storageCap;
+                ResourceLedger.SetStored(building, resource, storageCap);
                 continue;
             }
 
-            var before = building.storedEctoplasm;
-            building.storedEctoplasm = Math.Min(storageCap, before + (buildingRate * deltaTime));
-            if (building.storedEctoplasm > before)
+            var before = stored;
+            var after = Math.Min(storageCap, before + (buildingRate * deltaTime));
+            ResourceLedger.SetStored(building, resource, after);
+            if (after > before)
             {
                 producedAnything = true;
             }

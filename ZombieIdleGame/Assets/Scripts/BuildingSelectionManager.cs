@@ -109,6 +109,7 @@ public class BuildingSelectionManager : MonoBehaviour
         }
 
         var level = Mathf.Max(1, selectedBuilding.level);
+        var resource = BuildingCatalog.GetProducedResource(selectedBuilding.buildingId);
         titleText.text = BuildingCatalog.GetDisplayName(selectedBuilding.buildingId);
         levelText.text = $"Level: {level}";
 
@@ -120,7 +121,7 @@ public class BuildingSelectionManager : MonoBehaviour
         else
         {
             productionText.text = BuildingCatalog.GetBaseProduction(selectedBuilding.buildingId) > 0d
-                ? $"Production/s: {production:F2}"
+                ? $"Production/s: {production:F2} {ResourceLedger.GetDisplayName(resource)}"
                 : "Production/s: N/A";
         }
 
@@ -138,6 +139,12 @@ public class BuildingSelectionManager : MonoBehaviour
             detailsText.text = buffCount > 0
                 ? $"Buff sources: {buffCount} mausoleum nearby"
                 : "Buff sources: none";
+        }
+
+        if (resource != ResourceKind.None)
+        {
+            var stored = ResourceLedger.GetStored(selectedBuilding, resource);
+            detailsText.text = $"Stored {ResourceLedger.GetDisplayName(resource)}: {stored:F1}\n{detailsText.text}";
         }
 
         if (selectedBuilding.isBuilding)

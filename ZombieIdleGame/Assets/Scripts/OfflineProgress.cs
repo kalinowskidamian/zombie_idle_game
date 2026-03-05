@@ -33,9 +33,10 @@ public static class OfflineProgress
                 continue;
             }
 
-            var before = item.Building.storedEctoplasm;
-            item.Building.storedEctoplasm = Math.Min(storageCap, before + gained);
-            producedTotal += item.Building.storedEctoplasm - before;
+            var before = ResourceLedger.GetStored(item.Building, item.Resource);
+            var after = Math.Min(storageCap, before + gained);
+            ResourceLedger.SetStored(item.Building, item.Resource, after);
+            producedTotal += after - before;
         }
 
         var gainedWhole = (long)Math.Floor(producedTotal);
@@ -63,7 +64,13 @@ public static class OfflineProgress
                 continue;
             }
 
-            result.Add(new DistributionItem(building, rate, producedSeconds));
+            var resource = BuildingCatalog.GetProducedResource(building.buildingId);
+            if (resource == ResourceKind.None)
+            {
+                continue;
+            }
+
+            result.Add(new DistributionItem(building, resource, rate, producedSeconds));
         }
 
         return result;
@@ -107,12 +114,14 @@ public static class OfflineProgress
     private readonly struct DistributionItem
     {
         public BuildingInstance Building { get; }
+        public ResourceKind Resource { get; }
         public double Rate { get; }
         public long ProducedSeconds { get; }
 
-        public DistributionItem(BuildingInstance building, double rate, long producedSeconds)
+        public DistributionItem(BuildingInstance building, ResourceKind resource, double rate, long producedSeconds)
         {
             Building = building;
+            Resource = resource;
             Rate = rate;
             ProducedSeconds = producedSeconds;
         }
@@ -122,11 +131,11 @@ public static class OfflineProgress
 public readonly struct OfflineProgressResult
 {
     public long OfflineSeconds { get; }
-    public long GainedEctoplasm { get; }
+    public long GainedResources { get; }
 
-    public OfflineProgressResult(long offlineSeconds, long gainedEctoplasm)
+    public OfflineProgressResult(long offlineSeconds, long gainedResources)
     {
         OfflineSeconds = offlineSeconds;
-        GainedEctoplasm = gainedEctoplasm;
+        GainedResources = gainedResources;
     }
 }

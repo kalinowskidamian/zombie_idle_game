@@ -70,7 +70,13 @@ public static class BuildingTiming
             return false;
         }
 
-        return building.storedEctoplasm >= GetCollectThreshold(state, building);
+        var resource = BuildingCatalog.GetProducedResource(building.buildingId);
+        if (resource == ResourceKind.None)
+        {
+            return false;
+        }
+
+        return ResourceLedger.GetStored(building, resource) >= GetCollectThreshold(state, building);
     }
 
     public static double GetStorageCap(GameState state, BuildingInstance building)
