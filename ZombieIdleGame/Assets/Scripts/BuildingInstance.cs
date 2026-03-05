@@ -7,6 +7,7 @@ public class BuildingInstance
     public int x;
     public int y;
     public int level;
+    public double storedEctoplasm;
 
     public BuildingInstance(string buildingId, int x, int y, int level)
     {
@@ -14,5 +15,6 @@ public class BuildingInstance
         this.x = x;
         this.y = y;
         this.level = level;
+        storedEctoplasm = 0d;
     }
 }

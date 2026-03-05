@@ -11,16 +11,19 @@ public class GridManager : MonoBehaviour
     private static GridManager instance;
     private static Sprite cachedSquareSprite;
     private static Sprite cachedOutlineSprite;
+    private static Sprite cachedCircleSprite;
 
     private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
     private readonly Dictionary<Vector2Int, BuildingVisual> buildingVisuals = new Dictionary<Vector2Int, BuildingVisual>();
     private readonly List<SpriteRenderer> mausoleumRangeOverlays = new List<SpriteRenderer>();
+    private readonly List<FloatingText> floatingTexts = new List<FloatingText>();
 
     private Camera mainCamera;
     private Grid grid;
     private Transform tileRoot;
     private Transform buildingRoot;
     private Transform overlayRoot;
+    private Transform indicatorRoot;
     private SpriteRenderer ghostRenderer;
     private SpriteRenderer highlightRenderer;
     private SpriteRenderer selectionRenderer;
@@ -29,7 +32,14 @@ public class GridManager : MonoBehaviour
     {
         public BuildingInstance Building;
         public SpriteRenderer Renderer;
+        public SpriteRenderer CollectIndicator;
         public Color BaseColor;
+    }
+
+    private sealed class FloatingText
+    {
+        public TextMesh TextMesh;
+        public float Lifetime;
     }
 
     public static GridManager Instance => instance;
@@ -138,6 +148,8 @@ public class GridManager : MonoBehaviour
     private void Update()
     {
         UpdateHoverVisuals();
+        UpdateCollectIndicators();
+        UpdateFloatingTexts();
 
         if (!Input.GetMouseButtonDown(0))
         {
@@ -191,6 +203,12 @@ public class GridManager : MonoBehaviour
             return false;
         }
 
+        var collected = TryCollectFromBuilding(building);
+        if (collected > 0)
+        {
+            return true;
+        }
+
         BuildingSelectionManager.EnsureExists().SelectBuilding(building);
         return true;
     }
@@ -213,6 +231,37 @@ public class GridManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    private long TryCollectFromBuilding(BuildingInstance building)
+    {
+        if (building == null)
+        {
+            return 0;
+        }
+
+        var whole = (long)Math.Floor(building.storedEctoplasm);
+        if (whole <= 0)
+        {
+            return 0;
+        }
+
+        building.storedEctoplasm -= whole;
+
+        var state = GameBootstrap.State;
+        if (state == null)
+        {
+            return 0;
+        }
+
+        state.ectoplasm += whole;
+        state.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        SaveSystem.Save(state);
+
+        ShowFloatingText(new Vector2Int(building.x, building.y), $"+{whole}");
+        RefreshVisualsFromState();
+
+        return whole;
     }
 
     private void TryPlaceBuilding(Vector2Int gridPos)
@@ -310,6 +359,16 @@ public class GridManager : MonoBehaviour
         tileRoot = tiles;
         buildingRoot = buildings;
         overlayRoot = overlays;
+
+        var indicators = transform.Find("Indicators");
+        if (indicators == null)
+        {
+            var indicatorsObject = new GameObject("Indicators");
+            indicatorsObject.transform.SetParent(transform, false);
+            indicators = indicatorsObject.transform;
+        }
+
+        indicatorRoot = indicators;
     }
 
     private bool HasBackgroundTilemap()
@@ -481,6 +540,15 @@ public class GridManager : MonoBehaviour
     private void ClearBuildingVisualsInternal()
     {
         occupiedCells.Clear();
+
+        if (indicatorRoot != null)
+        {
+            for (var i = indicatorRoot.childCount - 1; i >= 0; i--)
+            {
+                Destroy(indicatorRoot.GetChild(i).gameObject);
+            }
+        }
+
         buildingVisuals.Clear();
 
         if (buildingRoot == null)
@@ -507,10 +575,21 @@ public class GridManager : MonoBehaviour
 
         var baseColor = Color.Lerp(Color.white, tintColor, 0.22f);
         renderer.color = baseColor;
+        var indicatorObject = new GameObject($"CollectIndicator_{gridPos.x}_{gridPos.y}");
+        indicatorObject.transform.SetParent(indicatorRoot, false);
+        indicatorObject.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0.33f, 0f);
+        indicatorObject.transform.localScale = new Vector3(0.18f, 0.18f, 1f);
+
+        var indicatorRenderer = indicatorObject.AddComponent<SpriteRenderer>();
+        indicatorRenderer.sprite = GetCircleSprite();
+        indicatorRenderer.color = new Color(0.35f, 1f, 0.45f, 0.9f);
+        indicatorRenderer.sortingOrder = 25;
+
         buildingVisuals[gridPos] = new BuildingVisual
         {
             Building = building,
             Renderer = renderer,
+            CollectIndicator = indicatorRenderer,
             BaseColor = baseColor
         };
     }
@@ -576,6 +655,100 @@ public class GridManager : MonoBehaviour
         renderer.color = new Color(0.35f, 0.85f, 0.35f, 0.16f);
         renderer.sortingOrder = 4;
         mausoleumRangeOverlays.Add(renderer);
+    }
+
+    private void UpdateCollectIndicators()
+    {
+        foreach (var visual in buildingVisuals.Values)
+        {
+            if (visual?.CollectIndicator == null || visual.Building == null)
+            {
+                continue;
+            }
+
+            var hasCollectable = visual.Building.storedEctoplasm >= 1d;
+            visual.CollectIndicator.gameObject.SetActive(hasCollectable);
+        }
+    }
+
+    private void ShowFloatingText(Vector2Int gridPos, string text)
+    {
+        var obj = new GameObject("CollectText");
+        obj.transform.SetParent(indicatorRoot, false);
+        obj.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0.45f, 0f);
+
+        var textMesh = obj.AddComponent<TextMesh>();
+        textMesh.text = text;
+        textMesh.characterSize = 0.15f;
+        textMesh.fontSize = 64;
+        textMesh.color = new Color(0.65f, 1f, 0.7f, 1f);
+        textMesh.anchor = TextAnchor.MiddleCenter;
+        textMesh.alignment = TextAlignment.Center;
+
+        floatingTexts.Add(new FloatingText
+        {
+            TextMesh = textMesh,
+            Lifetime = 1f
+        });
+    }
+
+    private void UpdateFloatingTexts()
+    {
+        for (var i = floatingTexts.Count - 1; i >= 0; i--)
+        {
+            var item = floatingTexts[i];
+            if (item.TextMesh == null)
+            {
+                floatingTexts.RemoveAt(i);
+                continue;
+            }
+
+            item.Lifetime -= Time.deltaTime;
+            item.TextMesh.transform.position += new Vector3(0f, Time.deltaTime * 0.5f, 0f);
+
+            var color = item.TextMesh.color;
+            color.a = Mathf.Clamp01(item.Lifetime);
+            item.TextMesh.color = color;
+
+            if (item.Lifetime <= 0f)
+            {
+                Destroy(item.TextMesh.gameObject);
+                floatingTexts.RemoveAt(i);
+            }
+        }
+    }
+
+    private static Sprite GetCircleSprite()
+    {
+        if (cachedCircleSprite != null)
+        {
+            return cachedCircleSprite;
+        }
+
+        var size = 32;
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp
+        };
+
+        var center = (size - 1) * 0.5f;
+        var radius = size * 0.48f;
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                var dx = x - center;
+                var dy = y - center;
+                var distance = Mathf.Sqrt((dx * dx) + (dy * dy));
+                var alpha = distance <= radius ? 1f : 0f;
+                texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+
+        texture.Apply();
+        cachedCircleSprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
+        return cachedCircleSprite;
     }
 
     private static Sprite GetSquareSprite()

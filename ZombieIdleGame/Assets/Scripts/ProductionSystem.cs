@@ -22,7 +22,7 @@ public class ProductionSystem : MonoBehaviour
     private void Update()
     {
         var state = GameBootstrap.State;
-        if (state == null)
+        if (state?.buildingInstances == null)
         {
             return;
         }
@@ -33,27 +33,33 @@ public class ProductionSystem : MonoBehaviour
             return;
         }
 
-        var rate = ProductionCalculator.GetProductionRatePerSecond(state);
-        if (rate <= 0d)
+        var producedAnything = false;
+        for (var i = 0; i < state.buildingInstances.Count; i++)
+        {
+            var building = state.buildingInstances[i];
+            var buildingRate = ProductionCalculator.GetBuildingProductionPerSecond(state, building);
+            if (buildingRate <= 0d)
+            {
+                continue;
+            }
+
+            building.storedEctoplasm += buildingRate * deltaTime;
+            producedAnything = true;
+        }
+
+        state.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        if (!producedAnything)
         {
             return;
         }
 
-        state.ectoplasmRemainder += rate * deltaTime;
-
-        var gainedWhole = (long)Math.Floor(state.ectoplasmRemainder);
-        if (gainedWhole > 0)
-        {
-            state.ectoplasm += gainedWhole;
-            state.ectoplasmRemainder -= gainedWhole;
-        }
-
-        state.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         saveTimer += deltaTime;
         if (saveTimer >= SaveIntervalSeconds)
         {
             saveTimer = 0f;
             SaveSystem.Save(state);
+            GridManager.Instance?.RefreshVisualsFromState();
         }
     }
 
