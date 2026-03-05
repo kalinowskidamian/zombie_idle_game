@@ -20,6 +20,7 @@ public class GameBootstrap : MonoBehaviour
         Debug.Log($"Offline progress: {result.OfflineSeconds}s, added {result.GainedEctoplasm} ectoplasm to uncollected storage.");
 
         UIHudController.EnsureHudExists();
+        MapCameraController.EnsureExists();
         GridManager.EnsureGridExists();
         BuildingSelectionManager.EnsureExists();
         ProductionSystem.EnsureExists();
