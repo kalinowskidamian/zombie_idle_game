@@ -3,6 +3,7 @@ using UnityEngine;
 
 public static class BuildingCatalog
 {
+    public const string HeadquartersId = "graveyard_chapel";
     public const string GraveId = "grave";
     public const string MorgueId = "morgue";
     public const string MausoleumId = "mausoleum";
@@ -13,6 +14,8 @@ public static class BuildingCatalog
     {
         switch (buildingId)
         {
+            case HeadquartersId:
+                return 300;
             case GraveId:
                 return 25;
             case MorgueId:
@@ -58,6 +61,8 @@ public static class BuildingCatalog
     {
         switch (buildingId)
         {
+            case HeadquartersId:
+                return 2d;
             case GraveId:
                 return 0.5d;
             case MorgueId:
@@ -77,6 +82,7 @@ public static class BuildingCatalog
     {
         switch (buildingId)
         {
+            case HeadquartersId:
             case GraveId:
             case MorgueId:
                 return ResourceKind.Ectoplasm;
@@ -118,6 +124,7 @@ public static class BuildingCatalog
     public static bool IsKnownBuilding(string buildingId)
     {
         return buildingId == GraveId
+            || buildingId == HeadquartersId
             || buildingId == MorgueId
             || buildingId == MausoleumId
             || buildingId == OssuaryId
@@ -128,6 +135,8 @@ public static class BuildingCatalog
     {
         switch (buildingId)
         {
+            case HeadquartersId:
+                return new Color(0.88f, 0.88f, 1f, 1f);
             case GraveId:
                 return new Color(0.2f, 0.65f, 0.3f, 1f);
             case MorgueId:
@@ -147,6 +156,8 @@ public static class BuildingCatalog
     {
         switch (buildingId)
         {
+            case HeadquartersId:
+                return "Graveyard Chapel";
             case GraveId:
                 return "Grave";
             case MorgueId:
@@ -166,6 +177,8 @@ public static class BuildingCatalog
     {
         switch (buildingId)
         {
+            case HeadquartersId:
+                return SpriteCache.HeadquartersSprite;
             case GraveId:
                 return SpriteCache.GraveSprite;
             case MorgueId:
@@ -181,8 +194,14 @@ public static class BuildingCatalog
         }
     }
 
+    public static bool IsHeadquarters(string buildingId)
+    {
+        return buildingId == HeadquartersId;
+    }
+
     private static class SpriteCache
     {
+        public static readonly Sprite HeadquartersSprite = CreateSpriteFor(HeadquartersId);
         public static readonly Sprite GraveSprite = CreateSpriteFor(GraveId);
         public static readonly Sprite MorgueSprite = CreateSpriteFor(MorgueId);
         public static readonly Sprite MausoleumSprite = CreateSpriteFor(MausoleumId);
@@ -208,7 +227,19 @@ public static class BuildingCatalog
             var fill = new Color32(230, 230, 230, 255);
             DrawRect(pixels, 64, 14, 6, 36, 6, fill);
 
-            if (buildingId == GraveId)
+            if (buildingId == HeadquartersId)
+            {
+                DrawRect(pixels, 64, 14, 14, 36, 24, fill);
+                for (var y = 0; y < 10; y++)
+                {
+                    DrawRect(pixels, 64, 14 + y, 38 + y, 36 - (2 * y), 1, fill);
+                }
+
+                DrawRect(pixels, 64, 28, 14, 8, 16, new Color32(65, 65, 65, 255));
+                DrawRect(pixels, 64, 30, 40, 4, 12, fill);
+                DrawRect(pixels, 64, 26, 46, 12, 2, fill);
+            }
+            else if (buildingId == GraveId)
             {
                 DrawRect(pixels, 64, 28, 16, 8, 28, fill);
                 DrawRect(pixels, 64, 20, 28, 24, 8, fill);

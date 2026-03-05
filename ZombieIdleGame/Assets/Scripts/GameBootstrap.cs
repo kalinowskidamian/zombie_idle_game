@@ -7,12 +7,14 @@ public class GameBootstrap : MonoBehaviour
     public static void ResetState()
     {
         State = new GameState();
+        State.EnsureHeadquarters();
         SaveSystem.Save(State);
     }
 
     private void Awake()
     {
         State = SaveSystem.LoadOrDefault();
+        State.EnsureHeadquarters();
 
         var result = OfflineProgress.Apply(State);
         SaveSystem.Save(State);
