@@ -478,13 +478,13 @@ public class UIHudController : MonoBehaviour
             for (var i = 0; i < state.buildingInstances.Count; i++)
             {
                 var building = state.buildingInstances[i];
-                ectoplasmTotal += building.storedEctoplasm;
-                rotTotal += building.storedRot;
-                skullsTotal += building.storedSkulls;
+                ectoplasmTotal += ResourceLedger.GetStored(building, ResourceKind.Ectoplasm);
+                rotTotal += ResourceLedger.GetStored(building, ResourceKind.Rot);
+                skullsTotal += ResourceLedger.GetStored(building, ResourceKind.Skulls);
             }
         }
 
-        uncollectedText.text = $"Uncollected Ectoplasm: {(long)Math.Floor(ectoplasmTotal)} | Rot: {(long)Math.Floor(rotTotal)} | Skulls: {(long)Math.Floor(skullsTotal)}";
+        uncollectedText.text = $"Uncollected - Ectoplasm: {(long)Math.Floor(ectoplasmTotal)} | Rot: {(long)Math.Floor(rotTotal)} | Skulls: {(long)Math.Floor(skullsTotal)}";
     }
 
     private void RefreshSelectedBuildingLabel()
