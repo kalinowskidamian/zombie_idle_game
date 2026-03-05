@@ -1,4 +1,3 @@
-using System;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -20,31 +19,33 @@ public static class BackgroundTilemapPainter
             return;
         }
 
-        Tilemap backgroundTilemap = FindBackgroundTilemap(activeScene);
-        if (backgroundTilemap == null)
+        Tilemap groundTilemap = FindTilemap(activeScene, "GroundTilemap");
+        Tilemap backgroundTilemap = FindTilemap(activeScene, "BackgroundTilemap");
+        if (groundTilemap == null || backgroundTilemap == null)
         {
-            Debug.LogError("Could not find Tilemap named 'BackgroundTilemap' in the active scene.");
+            Debug.LogError("Could not find Tilemaps named 'GroundTilemap' and 'BackgroundTilemap' in the active scene.");
             return;
         }
 
-        TileBase grass = LoadTile("Assets/Art/Tiles/TilesetTiles/grass.asset");
+        TileBase groundFill = LoadTile("Assets/Art/Tiles/TilesetTiles/ground_fill.asset");
         TileBase path = LoadTile("Assets/Art/Tiles/TilesetTiles/path.asset");
         TileBase dirt = LoadTile("Assets/Art/Tiles/TilesetTiles/dirt.asset");
         TileBase darkDirt = LoadTile("Assets/Art/Tiles/TilesetTiles/dark_dirt.asset");
 
-        if (grass == null || path == null || dirt == null || darkDirt == null)
+        if (groundFill == null || path == null || dirt == null || darkDirt == null)
         {
             return;
         }
 
-        Undo.RecordObject(backgroundTilemap, "Paint Background 8x8");
+        Undo.RecordObjects(new UnityEngine.Object[] { groundTilemap, backgroundTilemap }, "Paint Background 8x8");
+        groundTilemap.ClearAllTiles();
         backgroundTilemap.ClearAllTiles();
 
         for (int y = 0; y < Height; y++)
         {
             for (int x = 0; x < Width; x++)
             {
-                backgroundTilemap.SetTile(new Vector3Int(x, y, 0), grass);
+                groundTilemap.SetTile(new Vector3Int(x, y, 0), groundFill);
             }
         }
 
@@ -78,10 +79,10 @@ public static class BackgroundTilemapPainter
         }
 
         EditorSceneManager.MarkSceneDirty(activeScene);
-        Debug.Log("Painted BackgroundTilemap 8x8 with grass, path, dirt and dark_dirt.");
+        Debug.Log("Painted GroundTilemap and BackgroundTilemap 8x8 (ground fill + decorations).");
     }
 
-    private static Tilemap FindBackgroundTilemap(Scene scene)
+    private static Tilemap FindTilemap(Scene scene, string tilemapName)
     {
         GameObject[] roots = scene.GetRootGameObjects();
         foreach (GameObject root in roots)
@@ -89,7 +90,7 @@ public static class BackgroundTilemapPainter
             Tilemap[] tilemaps = root.GetComponentsInChildren<Tilemap>(true);
             foreach (Tilemap tilemap in tilemaps)
             {
-                if (tilemap.name == "BackgroundTilemap")
+                if (tilemap.name == tilemapName)
                 {
                     return tilemap;
                 }
