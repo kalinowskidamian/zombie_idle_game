@@ -33,6 +33,7 @@ public class GridManager : MonoBehaviour
         public BuildingInstance Building;
         public SpriteRenderer Renderer;
         public SpriteRenderer CollectIndicator;
+        public TextMesh BuildCountdownText;
         public Color BaseColor;
     }
 
@@ -149,6 +150,7 @@ public class GridManager : MonoBehaviour
     {
         UpdateHoverVisuals();
         UpdateCollectIndicators();
+        UpdateBuildingCountdowns();
         UpdateFloatingTexts();
 
         if (!Input.GetMouseButtonDown(0))
@@ -203,7 +205,9 @@ public class GridManager : MonoBehaviour
             return false;
         }
 
-        var collected = TryCollectFromBuilding(building);
+        var state = GameBootstrap.State;
+        var shouldCollect = BuildingTiming.CanCollect(state, building);
+        var collected = shouldCollect ? TryCollectFromBuilding(building) : 0;
         if (collected > 0)
         {
             return true;
@@ -240,6 +244,12 @@ public class GridManager : MonoBehaviour
             return 0;
         }
 
+        var state = GameBootstrap.State;
+        if (!BuildingTiming.CanCollect(state, building))
+        {
+            return 0;
+        }
+
         var whole = (long)Math.Floor(building.storedEctoplasm);
         if (whole <= 0)
         {
@@ -248,7 +258,6 @@ public class GridManager : MonoBehaviour
 
         building.storedEctoplasm -= whole;
 
-        var state = GameBootstrap.State;
         if (state == null)
         {
             return 0;
@@ -281,6 +290,7 @@ public class GridManager : MonoBehaviour
         state.ectoplasm -= cost;
         state.buildingInstances ??= new List<BuildingInstance>();
         var instanceBuilding = new BuildingInstance(buildingId, gridPos.x, gridPos.y, 1);
+        BuildingTiming.StartBuild(instanceBuilding, BuildingTiming.InitialBuildSeconds, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
         state.buildingInstances.Add(instanceBuilding);
         state.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
@@ -585,11 +595,24 @@ public class GridManager : MonoBehaviour
         indicatorRenderer.color = new Color(0.35f, 1f, 0.45f, 0.9f);
         indicatorRenderer.sortingOrder = 25;
 
+        var countdownObject = new GameObject($"BuildCountdown_{gridPos.x}_{gridPos.y}");
+        countdownObject.transform.SetParent(indicatorRoot, false);
+        countdownObject.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0.43f, 0f);
+
+        var countdownText = countdownObject.AddComponent<TextMesh>();
+        countdownText.text = string.Empty;
+        countdownText.characterSize = 0.08f;
+        countdownText.fontSize = 64;
+        countdownText.color = new Color(1f, 0.9f, 0.2f, 1f);
+        countdownText.anchor = TextAnchor.MiddleCenter;
+        countdownText.alignment = TextAlignment.Center;
+
         buildingVisuals[gridPos] = new BuildingVisual
         {
             Building = building,
             Renderer = renderer,
             CollectIndicator = indicatorRenderer,
+            BuildCountdownText = countdownText,
             BaseColor = baseColor
         };
     }
@@ -666,8 +689,31 @@ public class GridManager : MonoBehaviour
                 continue;
             }
 
-            var hasCollectable = visual.Building.storedEctoplasm >= 1d;
+            var state = GameBootstrap.State;
+            var hasCollectable = BuildingTiming.CanCollect(state, visual.Building);
             visual.CollectIndicator.gameObject.SetActive(hasCollectable);
+        }
+    }
+
+
+    private void UpdateBuildingCountdowns()
+    {
+        var nowUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        foreach (var visual in buildingVisuals.Values)
+        {
+            if (visual?.BuildCountdownText == null || visual.Building == null)
+            {
+                continue;
+            }
+
+            var remaining = BuildingTiming.GetRemainingBuildSeconds(visual.Building, nowUnixSeconds);
+            if (remaining <= 0)
+            {
+                visual.BuildCountdownText.text = string.Empty;
+                continue;
+            }
+
+            visual.BuildCountdownText.text = BuildingTiming.FormatTimeLeft(remaining);
         }
     }
 

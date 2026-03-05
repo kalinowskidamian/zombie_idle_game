@@ -8,6 +8,8 @@ public class BuildingInstance
     public int y;
     public int level;
     public double storedEctoplasm;
+    public bool isBuilding;
+    public long buildEndUnixSeconds;
 
     public BuildingInstance(string buildingId, int x, int y, int level)
     {
@@ -16,5 +18,7 @@ public class BuildingInstance
         this.y = y;
         this.level = level;
         storedEctoplasm = 0d;
+        isBuilding = false;
+        buildEndUnixSeconds = 0;
     }
 }

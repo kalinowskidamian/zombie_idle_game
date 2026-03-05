@@ -60,11 +60,11 @@ public class UIHudController : MonoBehaviour
         labelRect.anchorMax = new Vector2(0f, 1f);
         labelRect.pivot = new Vector2(0f, 1f);
         labelRect.anchoredPosition = new Vector2(20f, -20f);
-        labelRect.sizeDelta = new Vector2(420f, 50f);
+        labelRect.sizeDelta = new Vector2(520f, 42f);
 
         var label = labelObject.GetComponent<Text>();
         label.font = font;
-        label.fontSize = 32;
+        label.fontSize = 30;
         label.color = Color.white;
         label.alignment = TextAnchor.MiddleLeft;
 
@@ -74,12 +74,12 @@ public class UIHudController : MonoBehaviour
         selectedLabelRect.anchorMin = new Vector2(0f, 1f);
         selectedLabelRect.anchorMax = new Vector2(0f, 1f);
         selectedLabelRect.pivot = new Vector2(0f, 1f);
-        selectedLabelRect.anchoredPosition = new Vector2(20f, -130f);
-        selectedLabelRect.sizeDelta = new Vector2(520f, 40f);
+        selectedLabelRect.anchoredPosition = new Vector2(20f, -98f);
+        selectedLabelRect.sizeDelta = new Vector2(580f, 34f);
 
         var selectedLabel = selectedLabelObject.GetComponent<Text>();
         selectedLabel.font = font;
-        selectedLabel.fontSize = 24;
+        selectedLabel.fontSize = 22;
         selectedLabel.color = Color.white;
         selectedLabel.alignment = TextAnchor.MiddleLeft;
 
@@ -89,8 +89,8 @@ public class UIHudController : MonoBehaviour
         uncollectedLabelRect.anchorMin = new Vector2(0f, 1f);
         uncollectedLabelRect.anchorMax = new Vector2(0f, 1f);
         uncollectedLabelRect.pivot = new Vector2(0f, 1f);
-        uncollectedLabelRect.anchoredPosition = new Vector2(20f, -165f);
-        uncollectedLabelRect.sizeDelta = new Vector2(520f, 36f);
+        uncollectedLabelRect.anchoredPosition = new Vector2(20f, -58f);
+        uncollectedLabelRect.sizeDelta = new Vector2(580f, 34f);
 
         var uncollectedLabel = uncollectedLabelObject.GetComponent<Text>();
         uncollectedLabel.font = font;
@@ -98,13 +98,13 @@ public class UIHudController : MonoBehaviour
         uncollectedLabel.color = new Color(0.75f, 1f, 0.8f, 1f);
         uncollectedLabel.alignment = TextAnchor.MiddleLeft;
 
-        var button = CreateButton(canvasObject.transform, font, "AddTenButton", "+10", new Vector2(20f, -80f), new Color(0.2f, 0.6f, 0.2f, 0.9f));
-        var reset = CreateButton(canvasObject.transform, font, "ResetButton", "RESET", new Vector2(180f, -80f), new Color(0.7f, 0.2f, 0.2f, 0.9f));
+        var button = CreateButton(canvasObject.transform, font, "AddTenButton", "+10", new Vector2(20f, -146f), new Color(0.2f, 0.6f, 0.2f, 0.9f));
+        var reset = CreateButton(canvasObject.transform, font, "ResetButton", "RESET", new Vector2(180f, -146f), new Color(0.7f, 0.2f, 0.2f, 0.9f));
 
-        var selectButton = CreateButton(canvasObject.transform, font, "SelectModeButton", "Select", new Vector2(20f, -180f), new Color(0.2f, 0.35f, 0.6f, 0.9f));
-        var graveButton = CreateButton(canvasObject.transform, font, "GraveSelectButton", "Grave", new Vector2(180f, -180f), new Color(0.2f, 0.45f, 0.25f, 0.9f));
-        var morgueButton = CreateButton(canvasObject.transform, font, "MorgueSelectButton", "Morgue", new Vector2(340f, -180f), new Color(0.5f, 0.2f, 0.2f, 0.9f));
-        var mausoleumButton = CreateButton(canvasObject.transform, font, "MausoleumSelectButton", "Mausoleum", new Vector2(500f, -180f), new Color(0.4f, 0.2f, 0.55f, 0.9f));
+        var selectButton = CreateButton(canvasObject.transform, font, "SelectModeButton", "Select", new Vector2(340f, -146f), new Color(0.2f, 0.35f, 0.6f, 0.9f));
+        var graveButton = CreateButton(canvasObject.transform, font, "GraveSelectButton", "Grave", new Vector2(500f, -146f), new Color(0.2f, 0.45f, 0.25f, 0.9f));
+        var morgueButton = CreateButton(canvasObject.transform, font, "MorgueSelectButton", "Morgue", new Vector2(660f, -146f), new Color(0.5f, 0.2f, 0.2f, 0.9f));
+        var mausoleumButton = CreateButton(canvasObject.transform, font, "MausoleumSelectButton", "Mausoleum", new Vector2(820f, -146f), new Color(0.4f, 0.2f, 0.55f, 0.9f));
 
         hudController.ectoplasmText = label;
         hudController.selectedBuildingText = selectedLabel;

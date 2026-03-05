@@ -43,6 +43,14 @@ public class BuildingSelectionManager : MonoBehaviour
 
     public BuildingInstance SelectedBuilding => selectedBuilding;
 
+    private void Update()
+    {
+        if (selectedBuilding != null && panelRoot != null && panelRoot.activeSelf)
+        {
+            RefreshPanel();
+        }
+    }
+
     public void SelectBuilding(BuildingInstance building)
     {
         if (building == null)
@@ -92,14 +100,29 @@ public class BuildingSelectionManager : MonoBehaviour
             return;
         }
 
+        var nowUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (BuildingTiming.TryCompleteBuild(selectedBuilding, nowUnixSeconds))
+        {
+            state.lastSavedUnixSeconds = nowUnixSeconds;
+            SaveSystem.Save(state);
+            GridManager.Instance?.RefreshVisualsFromState();
+        }
+
         var level = Mathf.Max(1, selectedBuilding.level);
         titleText.text = BuildingCatalog.GetDisplayName(selectedBuilding.buildingId);
         levelText.text = $"Level: {level}";
 
         var production = ProductionCalculator.GetBuildingProductionPerSecond(state, selectedBuilding);
-        productionText.text = BuildingCatalog.GetBaseProduction(selectedBuilding.buildingId) > 0d
-            ? $"Production/s: {production:F2}"
-            : "Production/s: N/A";
+        if (selectedBuilding.isBuilding)
+        {
+            productionText.text = "Production/s: paused (building)";
+        }
+        else
+        {
+            productionText.text = BuildingCatalog.GetBaseProduction(selectedBuilding.buildingId) > 0d
+                ? $"Production/s: {production:F2}"
+                : "Production/s: N/A";
+        }
 
         var bonusPercent = ProductionCalculator.GetTotalBonusPercentForBuilding(state, selectedBuilding);
         var buffCount = ProductionCalculator.GetBuffingMausoleumCount(state, selectedBuilding);
@@ -117,10 +140,21 @@ public class BuildingSelectionManager : MonoBehaviour
                 : "Buff sources: none";
         }
 
+        if (selectedBuilding.isBuilding)
+        {
+            var left = BuildingTiming.GetRemainingBuildSeconds(selectedBuilding, nowUnixSeconds);
+            detailsText.text = $"Building... time left: {BuildingTiming.FormatTimeLeft(left)}\n{detailsText.text}";
+            upgradeButton.interactable = false;
+            upgradeButtonText.text = "Building...";
+            sellButton.interactable = false;
+            return;
+        }
+
         var upgradeCost = BuildingCatalog.GetUpgradeCost(selectedBuilding.buildingId, level);
         var canUpgrade = state.ectoplasm >= upgradeCost;
         upgradeButton.interactable = canUpgrade;
         upgradeButtonText.text = $"Upgrade ({upgradeCost})";
+        sellButton.interactable = true;
     }
 
     private string BuildMausoleumDetails(List<BuildingInstance> buffedBuildings, int level)
@@ -166,9 +200,18 @@ public class BuildingSelectionManager : MonoBehaviour
             return;
         }
 
+        if (selectedBuilding.isBuilding)
+        {
+            RefreshPanel();
+            return;
+        }
+
         state.ectoplasm -= upgradeCost;
         selectedBuilding.level = level + 1;
-        state.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var nowUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var buildDuration = BuildingTiming.GetUpgradeDurationSeconds(level);
+        BuildingTiming.StartBuild(selectedBuilding, buildDuration, nowUnixSeconds);
+        state.lastSavedUnixSeconds = nowUnixSeconds;
         SaveSystem.Save(state);
 
         GridManager.Instance?.RefreshVisualsFromState();
