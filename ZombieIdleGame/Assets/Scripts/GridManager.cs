@@ -8,6 +8,8 @@ public class GridManager : MonoBehaviour
 {
     private const int GridWidth = 8;
     private const int GridHeight = 8;
+    private const float CellScaleX = 1.62f;
+    private const float CellScaleY = 0.72f;
     private static readonly Vector2 ObliqueAxisX = new Vector2(1.16f, 0.52f);
     private static readonly Vector2 ObliqueAxisY = new Vector2(-1.16f, 0.52f);
     private static readonly Vector2 ObliqueOrigin = new Vector2(0f, 0f);
@@ -19,9 +21,11 @@ public class GridManager : MonoBehaviour
     private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
     private readonly Dictionary<Vector2Int, BuildingVisual> buildingVisuals = new Dictionary<Vector2Int, BuildingVisual>();
     private readonly List<SpriteRenderer> mausoleumRangeOverlays = new List<SpriteRenderer>();
+    private readonly List<SpriteRenderer> gridLineOverlays = new List<SpriteRenderer>();
 
     private Camera mainCamera;
     private Grid grid;
+    private Transform boardRoot;
     private Transform tileRoot;
     private Transform buildingRoot;
     private Transform overlayRoot;
@@ -146,6 +150,7 @@ public class GridManager : MonoBehaviour
     private void Update()
     {
         UpdateHoverVisuals();
+        UpdateGridOverlayVisualState();
         UpdateCollectIndicators();
         UpdateBuildingCountdowns();
 
@@ -378,6 +383,14 @@ public class GridManager : MonoBehaviour
     private void EnsureRoots()
     {
         var tiles = transform.Find("Tiles");
+        var board = transform.Find("Board");
+        if (board == null)
+        {
+            var boardObject = new GameObject("Board");
+            boardObject.transform.SetParent(transform, false);
+            board = boardObject.transform;
+        }
+
         if (tiles == null)
         {
             var tileObject = new GameObject("Tiles");
@@ -401,6 +414,7 @@ public class GridManager : MonoBehaviour
             overlays = overlayObject.transform;
         }
 
+        boardRoot = board;
         tileRoot = tiles;
         buildingRoot = buildings;
         overlayRoot = overlays;
@@ -435,10 +449,13 @@ public class GridManager : MonoBehaviour
 
     private void DrawGridTiles()
     {
-        if (tileRoot.childCount > 0)
+        if (tileRoot.childCount > 0 || boardRoot == null)
         {
             return;
         }
+
+        DrawBuildAreaPlatform();
+        gridLineOverlays.Clear();
 
         for (var x = 0; x < GridWidth; x++)
         {
@@ -449,14 +466,65 @@ public class GridManager : MonoBehaviour
                 var center = GridToWorldCenter(new Vector2Int(x, y));
                 cellObject.transform.position = center;
                 cellObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
-                cellObject.transform.localScale = new Vector3(1.62f, 0.72f, 1f);
+                cellObject.transform.localScale = new Vector3(CellScaleX, CellScaleY, 1f);
 
                 var renderer = cellObject.AddComponent<SpriteRenderer>();
                 renderer.sprite = GetSquareSprite();
-                renderer.color = new Color(0.12f, 0.16f, 0.12f, 0.55f);
-                renderer.sortingOrder = CalculateSortingOrder(y, 0);
+                var checker = (x + y) % 2 == 0;
+                renderer.color = checker
+                    ? new Color(0.18f, 0.22f, 0.18f, 0.85f)
+                    : new Color(0.12f, 0.17f, 0.13f, 0.82f);
+                renderer.sortingOrder = CalculateSortingOrder(x, y, 3);
+
+                var lineObject = new GameObject($"CellLine_{x}_{y}");
+                lineObject.transform.SetParent(tileRoot, false);
+                lineObject.transform.position = center + new Vector3(0f, 0f, -0.01f);
+                lineObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+                lineObject.transform.localScale = new Vector3(CellScaleX + 0.02f, CellScaleY + 0.02f, 1f);
+
+                var lineRenderer = lineObject.AddComponent<SpriteRenderer>();
+                lineRenderer.sprite = GetOutlineSprite();
+                lineRenderer.color = new Color(0.75f, 0.88f, 0.74f, 0.16f);
+                lineRenderer.sortingOrder = CalculateSortingOrder(x, y, 4);
+                gridLineOverlays.Add(lineRenderer);
             }
         }
+
+        UpdateGridOverlayVisualState();
+    }
+
+    private void DrawBuildAreaPlatform()
+    {
+        if (boardRoot.childCount > 0)
+        {
+            return;
+        }
+
+        var centerGrid = new Vector2((GridWidth * 0.5f), (GridHeight * 0.5f));
+        var boardCenter2D = ProjectGridToOblique(centerGrid);
+        var boardCenter = new Vector3(boardCenter2D.x, boardCenter2D.y - 0.24f, 0.08f);
+
+        var slabObject = new GameObject("BuildAreaSlab");
+        slabObject.transform.SetParent(boardRoot, false);
+        slabObject.transform.position = boardCenter;
+        slabObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+        slabObject.transform.localScale = new Vector3((GridWidth * CellScaleX) + 1.15f, (GridHeight * CellScaleY) + 0.95f, 1f);
+
+        var slabRenderer = slabObject.AddComponent<SpriteRenderer>();
+        slabRenderer.sprite = GetSquareSprite();
+        slabRenderer.color = new Color(0.07f, 0.1f, 0.08f, 0.95f);
+        slabRenderer.sortingOrder = 0;
+
+        var rimObject = new GameObject("BuildAreaRim");
+        rimObject.transform.SetParent(boardRoot, false);
+        rimObject.transform.position = boardCenter + new Vector3(0f, 0f, -0.01f);
+        rimObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+        rimObject.transform.localScale = new Vector3((GridWidth * CellScaleX) + 1.32f, (GridHeight * CellScaleY) + 1.12f, 1f);
+
+        var rimRenderer = rimObject.AddComponent<SpriteRenderer>();
+        rimRenderer.sprite = GetOutlineSprite();
+        rimRenderer.color = new Color(0.52f, 0.6f, 0.54f, 0.8f);
+        rimRenderer.sortingOrder = 1;
     }
 
     private void CreateHoverVisuals()
@@ -468,9 +536,9 @@ public class GridManager : MonoBehaviour
             highlightRenderer = highlightObject.AddComponent<SpriteRenderer>();
             highlightRenderer.sprite = GetOutlineSprite();
             highlightRenderer.color = new Color(1f, 1f, 1f, 0.95f);
-            highlightRenderer.sortingOrder = 19;
+            highlightRenderer.sortingOrder = 500;
             highlightObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
-            highlightObject.transform.localScale = new Vector3(1.63f, 0.74f, 1f);
+            highlightObject.transform.localScale = new Vector3(CellScaleX + 0.03f, CellScaleY + 0.03f, 1f);
             highlightObject.SetActive(false);
         }
 
@@ -481,9 +549,9 @@ public class GridManager : MonoBehaviour
             selectionRenderer = selectionObject.AddComponent<SpriteRenderer>();
             selectionRenderer.sprite = GetOutlineSprite();
             selectionRenderer.color = new Color(1f, 0.85f, 0.2f, 1f);
-            selectionRenderer.sortingOrder = 21;
+            selectionRenderer.sortingOrder = 520;
             selectionObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
-            selectionObject.transform.localScale = new Vector3(1.73f, 0.84f, 1f);
+            selectionObject.transform.localScale = new Vector3(CellScaleX + 0.11f, CellScaleY + 0.12f, 1f);
             selectionObject.SetActive(false);
         }
 
@@ -493,7 +561,7 @@ public class GridManager : MonoBehaviour
             ghostObject.transform.SetParent(transform, false);
             ghostRenderer = ghostObject.AddComponent<SpriteRenderer>();
             ghostRenderer.color = new Color(0.3f, 1f, 0.35f, 0.45f);
-            ghostRenderer.sortingOrder = 20;
+            ghostRenderer.sortingOrder = 510;
             ghostObject.transform.localScale = new Vector3(0.75f, 0.75f, 1f);
             ghostObject.SetActive(false);
         }
@@ -533,7 +601,11 @@ public class GridManager : MonoBehaviour
 
         var center = GridToWorldCenter(gridPos);
         highlightRenderer.transform.position = center + new Vector3(0f, 0f, -0.01f);
+        highlightRenderer.color = UIHudController.CurrentMode == UIHudController.InteractionMode.Build
+            ? new Color(0.96f, 1f, 0.8f, 0.98f)
+            : new Color(1f, 1f, 1f, 0.5f);
         highlightRenderer.gameObject.SetActive(true);
+        UpdateGridOverlayVisualState();
 
         if (!UIHudController.TryGetBuildBuildingId(out var selectedBuilding))
         {
@@ -551,6 +623,24 @@ public class GridManager : MonoBehaviour
             : new Color(1f, 0.3f, 0.3f, 0.48f);
 
         ghostRenderer.gameObject.SetActive(true);
+    }
+
+    private void UpdateGridOverlayVisualState()
+    {
+        var isBuildMode = UIHudController.CurrentMode == UIHudController.InteractionMode.Build;
+        var alpha = isBuildMode ? 0.27f : 0.12f;
+        for (var i = 0; i < gridLineOverlays.Count; i++)
+        {
+            var renderer = gridLineOverlays[i];
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            var color = renderer.color;
+            color.a = alpha;
+            renderer.color = color;
+        }
     }
 
     private void RebuildBuildingsFromState()
@@ -631,7 +721,7 @@ public class GridManager : MonoBehaviour
 
         var renderer = buildingObject.AddComponent<SpriteRenderer>();
         renderer.sprite = BuildingCatalog.GetSprite(building.buildingId);
-        renderer.sortingOrder = CalculateSortingOrder(gridPos.y, 8);
+        renderer.sortingOrder = CalculateSortingOrder(gridPos.x, gridPos.y, 80);
 
         var baseColor = Color.Lerp(Color.white, tintColor, 0.22f);
         renderer.color = baseColor;
@@ -643,7 +733,7 @@ public class GridManager : MonoBehaviour
         var indicatorRenderer = indicatorObject.AddComponent<SpriteRenderer>();
         indicatorRenderer.sprite = GetCircleSprite();
         indicatorRenderer.color = new Color(0.35f, 1f, 0.45f, 0.9f);
-        indicatorRenderer.sortingOrder = CalculateSortingOrder(gridPos.y, 26);
+        indicatorRenderer.sortingOrder = CalculateSortingOrder(gridPos.x, gridPos.y, 260);
 
         var countdownObject = new GameObject($"BuildCountdown_{gridPos.x}_{gridPos.y}");
         countdownObject.transform.SetParent(indicatorRoot, false);
@@ -656,6 +746,11 @@ public class GridManager : MonoBehaviour
         countdownText.color = new Color(1f, 0.9f, 0.2f, 1f);
         countdownText.anchor = TextAnchor.MiddleCenter;
         countdownText.alignment = TextAlignment.Center;
+        var countdownMeshRenderer = countdownObject.GetComponent<MeshRenderer>();
+        if (countdownMeshRenderer != null)
+        {
+            countdownMeshRenderer.sortingOrder = CalculateSortingOrder(gridPos.x, gridPos.y, 280);
+        }
 
         buildingVisuals[gridPos] = new BuildingVisual
         {
@@ -722,18 +817,19 @@ public class GridManager : MonoBehaviour
         overlayObject.transform.SetParent(overlayRoot, false);
         overlayObject.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0f, -0.02f);
         overlayObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
-        overlayObject.transform.localScale = new Vector3(1.62f, 0.72f, 1f);
+        overlayObject.transform.localScale = new Vector3(CellScaleX, CellScaleY, 1f);
 
         var renderer = overlayObject.AddComponent<SpriteRenderer>();
         renderer.sprite = GetSquareSprite();
         renderer.color = new Color(0.35f, 0.85f, 0.35f, 0.16f);
-        renderer.sortingOrder = CalculateSortingOrder(gridPos.y, 2);
+        renderer.sortingOrder = CalculateSortingOrder(gridPos.x, gridPos.y, 22);
         mausoleumRangeOverlays.Add(renderer);
     }
 
-    private static int CalculateSortingOrder(int gridY, int offset)
+    private static int CalculateSortingOrder(int gridX, int gridY, int offset)
     {
-        return ((GridHeight - gridY) * 10) + offset;
+        var depthKey = ((GridWidth - 1 - gridX) + (GridHeight - 1 - gridY));
+        return (depthKey * 20) + offset;
     }
 
     private void UpdateCollectIndicators()
