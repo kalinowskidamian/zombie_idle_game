@@ -2,9 +2,9 @@ using UnityEngine;
 
 public class MapCameraController : MonoBehaviour
 {
-    private static readonly Vector3 ObliqueEuler = new Vector3(42f, 0f, 45f);
-    private static readonly Vector3 ObliquePosition = new Vector3(0f, 7.6f, -16f);
-    private const float ObliqueOrthoSize = 7.3f;
+    private static readonly Vector3 ObliqueEuler = new Vector3(40f, 0f, 45f);
+    private static readonly Vector3 ObliquePosition = new Vector3(0f, 8.4f, -15.5f);
+    private const float ObliqueOrthoSize = 6.6f;
 
     private Camera targetCamera;
 

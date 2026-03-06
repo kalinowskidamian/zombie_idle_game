@@ -69,6 +69,11 @@ public sealed class FloatingTextSpawner : MonoBehaviour
         textMesh.color = color;
         textMesh.anchor = TextAnchor.MiddleCenter;
         textMesh.alignment = TextAlignment.Center;
+        var meshRenderer = textObject.GetComponent<MeshRenderer>();
+        if (meshRenderer != null)
+        {
+            meshRenderer.sortingOrder = 900;
+        }
 
         activeEntries.Add(new FloatingTextEntry
         {
