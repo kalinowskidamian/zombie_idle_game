@@ -2,6 +2,10 @@ using UnityEngine;
 
 public class MapCameraController : MonoBehaviour
 {
+    private static readonly Vector3 ObliqueEuler = new Vector3(42f, 0f, 45f);
+    private static readonly Vector3 ObliquePosition = new Vector3(0f, 7.6f, -16f);
+    private const float ObliqueOrthoSize = 7.3f;
+
     private Camera targetCamera;
 
     public static MapCameraController EnsureExists()
@@ -54,6 +58,11 @@ public class MapCameraController : MonoBehaviour
                 return;
             }
         }
+
+        targetCamera.orthographic = true;
+        targetCamera.orthographicSize = ObliqueOrthoSize;
+        targetCamera.transform.position = ObliquePosition;
+        targetCamera.transform.rotation = Quaternion.Euler(ObliqueEuler);
 
         var topBarScreenHeight = UIHudController.GetTopBarScreenHeight();
         var screenHeight = Mathf.Max(1f, Screen.height);
