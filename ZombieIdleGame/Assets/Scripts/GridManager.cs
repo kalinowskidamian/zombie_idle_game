@@ -8,6 +8,9 @@ public class GridManager : MonoBehaviour
 {
     private const int GridWidth = 8;
     private const int GridHeight = 8;
+    private static readonly Vector2 ObliqueAxisX = new Vector2(1.16f, 0.52f);
+    private static readonly Vector2 ObliqueAxisY = new Vector2(-1.16f, 0.52f);
+    private static readonly Vector2 ObliqueOrigin = new Vector2(0f, 0f);
     private static GridManager instance;
     private static Sprite cachedSquareSprite;
     private static Sprite cachedOutlineSprite;
@@ -130,11 +133,11 @@ public class GridManager : MonoBehaviour
             grid = gameObject.AddComponent<Grid>();
         }
 
+        grid.cellLayout = GridLayout.CellLayout.Rectangle;
+
         EnsureRoots();
-        if (!HasBackgroundTilemap())
-        {
-            DrawGridTiles();
-        }
+        DisableLegacyTilemapIfPresent();
+        DrawGridTiles();
 
         CreateHoverVisuals();
         RebuildBuildingsFromState();
@@ -309,16 +312,21 @@ public class GridManager : MonoBehaviour
 
     private bool TryGetGridPositionFromMouse(out Vector2Int gridPos)
     {
-        var mousePosition = Input.mousePosition;
-        mousePosition.z = Mathf.Abs(mainCamera.transform.position.z - 0f);
+        var ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+        var boardPlane = new Plane(Vector3.forward, Vector3.zero);
+        if (!boardPlane.Raycast(ray, out var enter))
+        {
+            gridPos = default;
+            return false;
+        }
 
-        var worldPos = mainCamera.ScreenToWorldPoint(mousePosition);
-        worldPos.z = 0f;
+        var worldPos = ray.GetPoint(enter);
+        if (!TryWorldToGrid(worldPos, out gridPos))
+        {
+            return false;
+        }
 
-        var cell = grid.WorldToCell(worldPos);
-        gridPos = new Vector2Int(cell.x, cell.y);
-
-        var isInside = cell.x >= 0 && cell.x < GridWidth && cell.y >= 0 && cell.y < GridHeight;
+        var isInside = gridPos.x >= 0 && gridPos.x < GridWidth && gridPos.y >= 0 && gridPos.y < GridHeight;
         return isInside;
     }
 
@@ -341,10 +349,30 @@ public class GridManager : MonoBehaviour
 
     private Vector3 GridToWorldCenter(Vector2Int gridPos)
     {
-        var cell = new Vector3Int(gridPos.x, gridPos.y, 0);
-        var center = grid.GetCellCenterWorld(cell);
-        center.z = 0f;
-        return center;
+        var projected = ProjectGridToOblique(new Vector2(gridPos.x + 0.5f, gridPos.y + 0.5f));
+        return new Vector3(projected.x, projected.y, 0f);
+    }
+
+    private static Vector2 ProjectGridToOblique(Vector2 grid)
+    {
+        return ObliqueOrigin + (ObliqueAxisX * grid.x) + (ObliqueAxisY * grid.y);
+    }
+
+    private static bool TryWorldToGrid(Vector3 world, out Vector2Int gridPos)
+    {
+        var relative = new Vector2(world.x - ObliqueOrigin.x, world.y - ObliqueOrigin.y);
+        var determinant = (ObliqueAxisX.x * ObliqueAxisY.y) - (ObliqueAxisX.y * ObliqueAxisY.x);
+        if (Mathf.Abs(determinant) < 0.00001f)
+        {
+            gridPos = default;
+            return false;
+        }
+
+        var continuousX = ((relative.x * ObliqueAxisY.y) - (relative.y * ObliqueAxisY.x)) / determinant;
+        var continuousY = ((ObliqueAxisX.x * relative.y) - (ObliqueAxisX.y * relative.x)) / determinant;
+
+        gridPos = new Vector2Int(Mathf.FloorToInt(continuousX), Mathf.FloorToInt(continuousY));
+        return true;
     }
 
     private void EnsureRoots()
@@ -388,10 +416,21 @@ public class GridManager : MonoBehaviour
         indicatorRoot = indicators;
     }
 
-    private bool HasBackgroundTilemap()
+    private void DisableLegacyTilemapIfPresent()
     {
         var tilemapTransform = transform.Find("BackgroundTilemap");
-        return tilemapTransform != null && tilemapTransform.GetComponent<Tilemap>() != null;
+        if (tilemapTransform == null)
+        {
+            return;
+        }
+
+        var tilemap = tilemapTransform.GetComponent<Tilemap>();
+        if (tilemap == null)
+        {
+            return;
+        }
+
+        tilemapTransform.gameObject.SetActive(false);
     }
 
     private void DrawGridTiles()
@@ -407,13 +446,15 @@ public class GridManager : MonoBehaviour
             {
                 var cellObject = new GameObject($"Cell_{x}_{y}");
                 cellObject.transform.SetParent(tileRoot, false);
-                cellObject.transform.position = GridToWorldCenter(new Vector2Int(x, y));
-                cellObject.transform.localScale = new Vector3(0.95f, 0.95f, 1f);
+                var center = GridToWorldCenter(new Vector2Int(x, y));
+                cellObject.transform.position = center;
+                cellObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+                cellObject.transform.localScale = new Vector3(1.62f, 0.72f, 1f);
 
                 var renderer = cellObject.AddComponent<SpriteRenderer>();
                 renderer.sprite = GetSquareSprite();
                 renderer.color = new Color(0.12f, 0.16f, 0.12f, 0.55f);
-                renderer.sortingOrder = 0;
+                renderer.sortingOrder = CalculateSortingOrder(y, 0);
             }
         }
     }
@@ -428,7 +469,8 @@ public class GridManager : MonoBehaviour
             highlightRenderer.sprite = GetOutlineSprite();
             highlightRenderer.color = new Color(1f, 1f, 1f, 0.95f);
             highlightRenderer.sortingOrder = 19;
-            highlightObject.transform.localScale = new Vector3(0.96f, 0.96f, 1f);
+            highlightObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+            highlightObject.transform.localScale = new Vector3(1.63f, 0.74f, 1f);
             highlightObject.SetActive(false);
         }
 
@@ -440,7 +482,8 @@ public class GridManager : MonoBehaviour
             selectionRenderer.sprite = GetOutlineSprite();
             selectionRenderer.color = new Color(1f, 0.85f, 0.2f, 1f);
             selectionRenderer.sortingOrder = 21;
-            selectionObject.transform.localScale = new Vector3(1.03f, 1.03f, 1f);
+            selectionObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+            selectionObject.transform.localScale = new Vector3(1.73f, 0.84f, 1f);
             selectionObject.SetActive(false);
         }
 
@@ -584,27 +627,27 @@ public class GridManager : MonoBehaviour
         var buildingObject = new GameObject($"{building.buildingId}_{gridPos.x}_{gridPos.y}");
         buildingObject.transform.SetParent(buildingRoot, false);
         buildingObject.transform.position = GridToWorldCenter(gridPos);
-        buildingObject.transform.localScale = new Vector3(0.75f, 0.75f, 1f);
+        buildingObject.transform.localScale = new Vector3(0.95f, 0.95f, 1f);
 
         var renderer = buildingObject.AddComponent<SpriteRenderer>();
         renderer.sprite = BuildingCatalog.GetSprite(building.buildingId);
-        renderer.sortingOrder = 5;
+        renderer.sortingOrder = CalculateSortingOrder(gridPos.y, 8);
 
         var baseColor = Color.Lerp(Color.white, tintColor, 0.22f);
         renderer.color = baseColor;
         var indicatorObject = new GameObject($"CollectIndicator_{gridPos.x}_{gridPos.y}");
         indicatorObject.transform.SetParent(indicatorRoot, false);
-        indicatorObject.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0.33f, 0f);
+        indicatorObject.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0.48f, 0f);
         indicatorObject.transform.localScale = new Vector3(0.18f, 0.18f, 1f);
 
         var indicatorRenderer = indicatorObject.AddComponent<SpriteRenderer>();
         indicatorRenderer.sprite = GetCircleSprite();
         indicatorRenderer.color = new Color(0.35f, 1f, 0.45f, 0.9f);
-        indicatorRenderer.sortingOrder = 25;
+        indicatorRenderer.sortingOrder = CalculateSortingOrder(gridPos.y, 26);
 
         var countdownObject = new GameObject($"BuildCountdown_{gridPos.x}_{gridPos.y}");
         countdownObject.transform.SetParent(indicatorRoot, false);
-        countdownObject.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0.43f, 0f);
+        countdownObject.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0.62f, 0f);
 
         var countdownText = countdownObject.AddComponent<TextMesh>();
         countdownText.text = string.Empty;
@@ -678,13 +721,19 @@ public class GridManager : MonoBehaviour
         var overlayObject = new GameObject($"MausoleumRange_{gridPos.x}_{gridPos.y}");
         overlayObject.transform.SetParent(overlayRoot, false);
         overlayObject.transform.position = GridToWorldCenter(gridPos) + new Vector3(0f, 0f, -0.02f);
-        overlayObject.transform.localScale = new Vector3(0.95f, 0.95f, 1f);
+        overlayObject.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+        overlayObject.transform.localScale = new Vector3(1.62f, 0.72f, 1f);
 
         var renderer = overlayObject.AddComponent<SpriteRenderer>();
         renderer.sprite = GetSquareSprite();
         renderer.color = new Color(0.35f, 0.85f, 0.35f, 0.16f);
-        renderer.sortingOrder = 4;
+        renderer.sortingOrder = CalculateSortingOrder(gridPos.y, 2);
         mausoleumRangeOverlays.Add(renderer);
+    }
+
+    private static int CalculateSortingOrder(int gridY, int offset)
+    {
+        return ((GridHeight - gridY) * 10) + offset;
     }
 
     private void UpdateCollectIndicators()
